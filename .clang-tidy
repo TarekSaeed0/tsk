@@ -1,0 +1,21 @@
+Checks: >
+  *,
+  -altera-*,
+  -llvmlibc-*,
+  -android-*,
+  -readability-function-cognitive-complexity,
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
+  -readability-magic-numbers,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -hicpp-signed-bitwise,
+  -misc-include-cleaner,
+  -llvm-header-guard,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-macro-parentheses,
+  -google-readability-todo,
+  -bugprone-multi-level-implicit-pointer-conversion,
+  -concurrency-mt-unsafe,
+
+CheckOptions:
+  readability-identifier-length.IgnoredVariableNames: "^[ui](8|16|32|64)|[ijk]$"
+  readability-identifier-length.IgnoredParameterNames: "^[ui](8|16|32|64)$"
