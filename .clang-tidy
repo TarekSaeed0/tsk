@@ -15,6 +15,8 @@ Checks: >
   -google-readability-todo,
   -bugprone-multi-level-implicit-pointer-conversion,
   -concurrency-mt-unsafe,
+  -misc-no-recursion,
+  -cppcoreguidelines-avoid-non-const-global-variables,
 
 CheckOptions:
   readability-identifier-length.IgnoredVariableNames: "^[ui](8|16|32|64)|[ijk]$"

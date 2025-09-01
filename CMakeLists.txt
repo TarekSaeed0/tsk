@@ -12,7 +12,19 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 add_library(
 	tsk 
 	src/tsk/type.c
+	src/tsk/trait/complete.c
+	src/tsk/trait/droppable.c
+	src/tsk/trait/clonable.c
+	src/tsk/trait/comparable.c
+	src/tsk/trait/equatable.c
+	src/tsk/trait/hasher.c
+	src/tsk/trait/hashable.c
+	src/tsk/trait/builder.c
+	src/tsk/trait/iterator.c
+	src/tsk/default_hasher.c
+	src/tsk/reference.c
 	src/tsk/value.c
+	src/tsk/tuple.c
 	src/tsk/array.c
 	src/tsk/list.c
 	src/tsk/map.c

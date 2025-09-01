@@ -1,5 +1,5 @@
-#ifndef TSK_CORE_H_INCLUDED
-#define TSK_CORE_H_INCLUDED
+#ifndef TSK_TYPE_H_INCLUDED
+#define TSK_TYPE_H_INCLUDED
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,9 +30,9 @@ typedef struct {
 
 typedef void TskAny;
 
-typedef bool TskBool;
+typedef bool TskBoolean;
 
-typedef char TskChar;
+typedef char TskCharacter;
 
 typedef uint8_t  TskU8;
 typedef uint16_t TskU16;
@@ -49,156 +49,92 @@ typedef ptrdiff_t TskISize;
 typedef float  TskF32;
 typedef double TskF64;
 
-typedef enum TskTrait {
-	TSK_TRAIT_COMPLETE,
-	TSK_TRAIT_DROPPABLE,
-	TSK_TRAIT_CLONABLE,
-	TSK_TRAIT_COMPARABLE,
-	TSK_TRAIT_EQUATABLE,
-	TSK_TRAIT_HASHER,
-	TSK_TRAIT_HASHABLE,
-	TSK_TRAIT_BUILDER,
+typedef TskUSize TskTraitID;
 
-	TSK_TRAIT_COUNT,
-} TskTrait;
-
+typedef struct TskTypeTraitTableEntry TskTypeTraitTableEntry;
+struct TskTypeTraitTableEntry {
+	TskTraitID    trait_id;
+	const TskAny *trait_data;
+};
+typedef struct TskTypeTraitTable TskTypeTraitTable;
+struct TskTypeTraitTable {
+	TskTypeTraitTableEntry *entries;
+	TskUSize                capacity;
+};
 typedef struct TskType TskType;
 struct TskType {
-	const TskChar *name;
-	const TskAny  *traits[TSK_TRAIT_COUNT];
+	const TskCharacter      *name;
+	const TskTypeTraitTable *trait_table;
 };
-TskBool        tsk_type_is_valid(const TskType *type);
-const TskChar *tsk_type_name(const TskType *type);
-const TskAny  *tsk_type_trait(const TskType *type, TskTrait trait);
-TskBool        tsk_type_has_trait(const TskType *type, TskTrait trait);
+TskBoolean          tsk_type_is_valid(const TskType *type);
+const TskCharacter *tsk_type_name(const TskType *type);
+const TskAny       *tsk_type_trait(const TskType *type, TskTraitID trait_id);
+TskBoolean          tsk_type_has_trait(const TskType *type, TskTraitID trait_id);
 
-typedef struct TskTraitComplete TskTraitComplete;
-struct TskTraitComplete {
-	TskUSize size;
-	TskUSize alignment;
-};
-TskUSize tsk_trait_complete_size(const TskTraitComplete *trait_complete);
-TskUSize tsk_trait_complete_alignment(const TskTraitComplete *trait_complete);
+// clang-format off
+#define TSK_TYPE_TRAIT_TABLE_LENGTH_(\
+	_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, \
+	_11, _12, _13, _14, _15, _16, _17, _18, _19, _20, \
+	_21, _22, _23, _24, _25, _26, _27, _28, _29, _30, \
+	_31, _32, _33, _34, _35, _36, _37, _38, _39, _40, \
+	_41, _42, _43, _44, _45, _46, _47, _48, _49, _50, \
+	_51, _52, _53, _54, _55, _56, _57, _58, _59, _60, \
+	_61, _62, _63, n, ...) n
+#define TSK_TYPE_TRAIT_TABLE_LENGTH(...) \
+	TSK_TYPE_TRAIT_TABLE_LENGTH_(\
+		__VA_ARGS__, 63, 62, 61, 60, \
+		59, 58, 57, 56, 55, 54, 53, 52, 51, 50, \
+		49, 48, 47, 46, 45, 44, 43, 42, 41, 40, \
+		39, 38, 37, 36, 35, 34, 33, 32, 31, 30, \
+		29, 28, 27, 26, 25, 24, 23, 22, 21, 20, \
+		19, 18, 17, 16, 15, 14, 13, 12, 11, 10, \
+		9, 8, 7, 6, 5, 4, 3, 2, 1, 0 \
+	)
+// clang-format on
 
-typedef struct TskTraitDroppable TskTraitDroppable;
-struct TskTraitDroppable {
-	TskEmpty (*drop)(TskAny *droppable);
-};
-TskEmpty tsk_trait_droppable_drop(const TskTraitDroppable *trait_droppable, TskAny *droppable);
+#define TSK_TYPE_TRAIT_TABLE_CAPACITY_(length) \
+	(length <= 1 ? 1 : (1ULL << (64 - __builtin_clzll((2 * length) - 1))))
+#define TSK_TYPE_TRAIT_TABLE_CAPACITY(...) \
+	TSK_TYPE_TRAIT_TABLE_CAPACITY_(TSK_TYPE_TRAIT_TABLE_LENGTH(__VA_ARGS__))
 
-typedef struct TskTraitClonable TskTraitClonable;
-struct TskTraitClonable {
-	const TskTraitComplete *trait_complete;
-	TskBool (*clone)(const TskAny *clonable_1, TskAny *clonable_2);
-};
-TskBool tsk_trait_clonable_clone(const TskTraitClonable *trait_clonable, const TskAny *clonable_1, TskAny *clonable_2);
+#define TSK_TYPE(type_identifier, type_name, ...)                                                    \
+	enum {                                                                                             \
+		type_identifier##_trait_table_capacity = TSK_TYPE_TRAIT_TABLE_CAPACITY(__VA_ARGS__)              \
+	};                                                                                                 \
+	const TskType type_identifier##_ = {                                                               \
+		.name        = #type_name,                                                                       \
+		.trait_table = &(const TskTypeTraitTable){                                                       \
+		    .entries  = (TskTypeTraitTableEntry[type_identifier##_trait_table_capacity]){ __VA_ARGS__ }, \
+		    .capacity = type_identifier##_trait_table_capacity,                                          \
+		}                                                                                                \
+	};                                                                                                 \
+	const TskType *const type_identifier = &type_identifier##_
+#define TSK_TYPE_TRAIT(type_identifier, trait_id, ...) \
+	[(trait_id) & (type_identifier##_trait_table_capacity - 1)] = { (trait_id), (__VA_ARGS__) }
 
-typedef enum TskOrdering {
-	TSK_ORDERING_LESS    = -1,
-	TSK_ORDERING_EQUAL   = 0,
-	TSK_ORDERING_GREATER = 1
-} TskOrdering;
+extern const TskType *const tsk_unit_type;
 
-typedef struct TskTraitComparable TskTraitComparable;
-struct TskTraitComparable {
-	TskOrdering (*compare)(const TskAny *comparable_1, const TskAny *comparable_2);
-};
-TskOrdering tsk_trait_comparable_compare(const TskTraitComparable *trait_comparable, const TskAny *comparable_1, const TskAny *comparable_2);
+extern const TskType *const tsk_boolean_type;
 
-typedef struct TskTraitEquatable TskTraitEquatable;
-struct TskTraitEquatable {
-	TskBool (*equals)(const TskAny *equatable_1, const TskAny *equatable_2);
-};
-TskBool tsk_trait_equatable_equals(const TskTraitEquatable *trait_equatable, const TskAny *equatable_1, const TskAny *equatable_2);
+extern const TskType *const tsk_character_type;
 
-typedef struct TskTraitHasher TskTraitHasher;
-struct TskTraitHasher {
-	TskEmpty (*combine)(TskAny *hasher, const TskU8 *bytes, TskUSize length);
-	TskU64 (*finalize)(const TskAny *hasher);
-};
-TskEmpty tsk_trait_hasher_combine(const TskTraitHasher *trait_hasher, TskAny *hasher, const TskU8 *bytes, TskUSize length);
-TskU64   tsk_trait_hasher_finalize(const TskTraitHasher *trait_hasher, const TskAny *hasher);
+extern const TskType *const tsk_u8_type;
+extern const TskType *const tsk_u16_type;
+extern const TskType *const tsk_u32_type;
+extern const TskType *const tsk_u64_type;
+extern const TskType *const tsk_usize_type;
 
-typedef struct TskTraitHashable TskTraitHashable;
-struct TskTraitHashable {
-	TskEmpty (*hash)(const TskAny *hashable, const TskTraitHasher *trait_hasher, TskAny *hasher);
-};
-TskEmpty tsk_trait_hashable_hash(const TskTraitHashable *trait_hashable, const TskAny *hashable, const TskTraitHasher *trait_hasher, TskAny *hasher);
+extern const TskType *const tsk_i8_type;
+extern const TskType *const tsk_i16_type;
+extern const TskType *const tsk_i32_type;
+extern const TskType *const tsk_i64_type;
+extern const TskType *const tsk_isize_type;
 
-typedef struct TskTraitBuilder TskTraitBuilder;
-struct TskTraitBuilder {
-	const TskType *built_type;
-	TskEmpty (*build)(const TskAny *builder, TskAny *hasher);
-};
-const TskType *tsk_trait_builder_built_type(const TskTraitBuilder *trait_builder);
-TskEmpty       tsk_trait_builder_build(const TskTraitBuilder *trait_builder, const TskAny *builder, TskAny *built);
-
-typedef struct TskDefaultHasher TskDefaultHasher;
-struct TskDefaultHasher {
-	TskU64 hash;
-};
-TskEmpty tsk_default_hasher_combine(TskDefaultHasher *hasher, const TskU8 *bytes, TskUSize length);
-TskU64   tsk_default_hasher_finalize(const TskDefaultHasher *hasher);
-
-extern const TskType tsk_default_hasher_type;
-
-typedef struct TskDefaultHasherBuilder TskDefaultHasherBuilder;
-struct TskDefaultHasherBuilder {
-	TskUnit _;
-};
-TskEmpty tsk_default_hasher_builder_build(const TskDefaultHasherBuilder *hasher_builder, TskDefaultHasher *hasher);
-
-extern TskDefaultHasher tsk_default_hasher_builder; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
-
-extern const TskType tsk_default_hasher_builder_type;
-
-extern TskUnit tsk_unit; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
-
-TskOrdering tsk_unit_compare(TskUnit unit_1, TskUnit unit_2);
-TskBool     tsk_unit_equals(TskUnit unit_1, TskUnit unit_2);
-TskEmpty    tsk_unit_hash(TskUnit unit, const TskTraitHasher *trait_hasher, TskAny *hasher);
-
-extern const TskType tsk_unit_type;
-
-#define TSK_INTEGRAL_DECLARATION(integral_prefix, integral_parameter, IntegralType)                                        \
-	TskOrdering integral_prefix##_compare(IntegralType integral_parameter##_1, IntegralType integral_parameter##_2);         \
-	TskBool     integral_prefix##_equals(IntegralType integral_parameter##_1, IntegralType integral_parameter##_2);          \
-	TskEmpty    integral_prefix##_hash(IntegralType integral_parameter, const TskTraitHasher *trait_hasher, TskAny *hasher); \
-                                                                                                                           \
-	extern const TskType integral_prefix##_type
-
-TSK_INTEGRAL_DECLARATION(tsk_bool, boolean, TskBool);
-
-TSK_INTEGRAL_DECLARATION(tsk_char, character, TskChar);
-
-TSK_INTEGRAL_DECLARATION(tsk_u8, u8, TskU8);
-TSK_INTEGRAL_DECLARATION(tsk_u16, u16, TskU16);
-TSK_INTEGRAL_DECLARATION(tsk_u32, u32, TskU32);
-TSK_INTEGRAL_DECLARATION(tsk_u64, u64, TskU64);
-TSK_INTEGRAL_DECLARATION(tsk_usize, usize, TskUSize);
-
-TSK_INTEGRAL_DECLARATION(tsk_i8, i8, TskI8);
-TSK_INTEGRAL_DECLARATION(tsk_i16, i16, TskI16);
-TSK_INTEGRAL_DECLARATION(tsk_i32, i32, TskI32);
-TSK_INTEGRAL_DECLARATION(tsk_i64, i64, TskI64);
-TSK_INTEGRAL_DECLARATION(tsk_isize, isize, TskISize);
-
-#undef TSK_INTEGRAL_DECLARATION
-
-#define TSK_FLOATING_POINT_DECLARATION(floating_point_prefix, floating_point_parameter, FloatingPointType)                                     \
-	TskOrdering floating_point_prefix##_compare(FloatingPointType floating_point_parameter##_1, FloatingPointType floating_point_parameter##_2); \
-	TskBool     floating_point_prefix##_equals(FloatingPointType floating_point_parameter##_1, FloatingPointType floating_point_parameter##_2);  \
-	TskEmpty    floating_point_prefix##_hash(FloatingPointType floating_point_parameter, const TskTraitHasher *trait_hasher, TskAny *hasher);    \
-                                                                                                                                               \
-	extern const TskType floating_point_prefix##_type
-
-TSK_FLOATING_POINT_DECLARATION(tsk_f32, f32, TskF32);
-TSK_FLOATING_POINT_DECLARATION(tsk_f64, f64, TskF64);
-
-#undef TSK_FLOATING_POINT_DECLARATION
+extern const TskType *const tsk_f32_type;
+extern const TskType *const tsk_f64_type;
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // TSK_CORE_H_INCLUDED
+#endif // TSK_TYPE_H_INCLUDED

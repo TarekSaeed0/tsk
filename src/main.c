@@ -1,67 +1,88 @@
-#include <tsk/array.h>
+#include <ctype.h>
+#include <stdio.h>
+#include <string.h>
+
+#include <tsk/trait/clonable.h>
+#include <tsk/trait/complete.h>
+#include <tsk/trait/droppable.h>
+#include <tsk/trait/equatable.h>
+#include <tsk/trait/hashable.h>
+#include <tsk/trait/hasher.h>
+#include <tsk/type.h>
+
 #include <tsk/map.h>
 
-#include <assert.h>
-#include <stdio.h>
+TskBoolean string_type_equatable_equals(const TskType *equatable_type, const TskAny *equatable_1, const TskAny *equatable_2) {
+	(TskEmpty) equatable_type;
 
-TskBool tsk_array_view_next_permutation(TskArrayView array_view) {
-	assert(tsk_array_view_is_valid(array_view));
-	assert(tsk_type_has_trait(array_view.element_type, TSK_TRAIT_COMPARABLE));
+	return strcmp(*(const TskCharacter **)equatable_1, *(const TskCharacter **)equatable_2) == 0;
+}
+TskEmpty string_type_trait_hashable_hash(const TskType *hashable_type, const TskAny *hashable, const TskType *hasher_type, TskAny *hasher) {
+	(TskEmpty) hashable_type;
 
-	array_view = tsk_array_view_slice(array_view, tsk_array_view_length(array_view), 0, -1);
-
-	TskUSize i = tsk_array_view_sorted_until(array_view);
-	if (i == tsk_array_view_length(array_view)) {
-		return TSK_FALSE;
-	}
-
-	TskUSize j = tsk_array_view_upper_bound(
-	    tsk_array_view_slice(array_view, 0, i, 1),
-	    tsk_array_view_get(array_view, i)
+	TskUSize length = strlen(*(const TskCharacter **)hashable);
+	tsk_trait_hasher_combine(
+	    hasher_type,
+	    hasher,
+	    (const TskU8 *)*(const TskCharacter **)hashable,
+	    length
 	);
-
-	tsk_array_view_swap(array_view, i, j);
-	tsk_array_view_reverse(tsk_array_view_slice(array_view, 0, i, 1));
-
-	return TSK_TRUE;
 }
 
-TskEmpty tsk_array_view_print(TskArrayView array_view, TskEmpty (*print)(const TskAny *element)) {
-	assert(tsk_array_view_is_valid(array_view));
-	assert(print != TSK_NULL);
-
-	printf("{ ");
-	for (TskUSize i = 0; i < tsk_array_view_length(array_view); i++) {
-		if (i != 0) {
-			printf(", ");
-		}
-		print(tsk_array_view_get(array_view, i));
-	}
-	printf(" }\n");
-}
-
-TskEmpty print_i32(const TskAny *element) {
-	printf("%d", *(const TskI32 *)element);
-}
+// clang-format off
+TSK_TYPE(string_type, const TskCharacter *,
+	TSK_TYPE_TRAIT(string_type, TSK_TRAIT_ID_COMPLETE, &(TskTraitComplete){
+		.size      = sizeof(const TskCharacter *),
+		.alignment = alignof(const TskCharacter *),
+	}),
+	TSK_TYPE_TRAIT(string_type, TSK_TRAIT_ID_DROPPABLE, &(TskTraitDroppable){
+		.drop = TSK_NULL,
+	}),
+	TSK_TYPE_TRAIT(string_type, TSK_TRAIT_ID_CLONABLE, &(TskTraitClonable){
+		.clone = TSK_NULL,
+	}),
+	TSK_TYPE_TRAIT(string_type, TSK_TRAIT_ID_EQUATABLE, &(TskTraitEquatable){
+		.equals = string_type_equatable_equals,
+	}),
+	TSK_TYPE_TRAIT(string_type, TSK_TRAIT_ID_HASHABLE, &(TskTraitHashable){
+		.hash = string_type_trait_hashable_hash,
+	}),
+);
+// clang-format on
 
 int main(void) {
-	TskArray input     = tsk_array_new(&tsk_char_type);
-	TskI32   character = EOF;
-	while ((character = getchar()) != EOF && character != '\n') {
-		tsk_array_push_back(&input, &(TskChar){ (TskChar)character });
+	const TskType *map_type        = tsk_map_type(string_type, tsk_u32_type);
+	TskMap         map             = tsk_map_new(map_type);
+
+	TskCharacter text[]            = "\
+The quick brown fox jumps over the lazy dog.\n\
+The dog barked, and the fox ran away.\n\
+Dogs and foxes are not always enemies; sometimes they share the same forest.\n\
+Quick thinking helps a fox escape danger, but lazy habits may cost a dog its meal.\n\
+";
+
+	const TskCharacter *delimiters = " \n\t.,;:!?\"'()[]{}<>";
+	TskCharacter       *token      = strtok(text, delimiters);
+	while (token != TSK_NULL) {
+		for (TskCharacter *character = token; *character; character++) {
+			*character = (TskCharacter)tolower(*character);
+		}
+
+		TskU32 *value = tsk_map_get_or_insert(map_type, &map, &(const TskCharacter *){ token }, &(TskU32){ 0 });
+		(*value)++;
+
+		token = strtok(TSK_NULL, delimiters);
 	}
 
-	TskMap frequency_map = tsk_map_new(&tsk_char_type, &tsk_u32_type);
-	for (TskUSize i = 0; i < tsk_array_length(&input); i++) {
-		TskU32 *count = tsk_map_get_or_insert(&frequency_map, tsk_array_get(&input, i), &(TskU32){ 0 });
-		(*count)++;
+	const TskType *map_iterator_type = tsk_map_iterator_type(map_type);
+	TskMapIterator map_iterator      = tsk_map_iterator(map_type, &map);
+
+	for (
+	    struct { const TskCharacter **key; TskU32 *value; } item;
+	    tsk_map_iterator_next(map_iterator_type, &map_iterator, &item);
+	) {
+		printf("\"%s\": %u\n", *item.key, *item.value);
 	}
 
-	TskMapIteratorItem item;
-	for (TskMapIterator iterator = tsk_map_iterator(&frequency_map); tsk_map_iterator_next(&iterator, &item);) {
-		printf("'%c': %u\n", *(const TskChar *)item.key, *(const TskU32 *)item.value);
-	}
-
-	tsk_map_drop(&frequency_map);
-	tsk_array_drop(&input);
+	tsk_map_drop(map_type, &map);
 }
