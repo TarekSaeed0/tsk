@@ -117,13 +117,12 @@ Public Attributes</h2></td></tr>
 <tr class="memitem:afb4b86e505f2baa7147d29b9cf7d331d" id="r_afb4b86e505f2baa7147d29b9cf7d331d"><td class="memItemLeft" ><a id="afb4b86e505f2baa7147d29b9cf7d331d" name="afb4b86e505f2baa7147d29b9cf7d331d"></a>
 union {&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6e60473c244aad1be25458f5be2f93ab" id="r_a6e60473c244aad1be25458f5be2f93ab"><td class="memItemLeft" >
-&#160;&#160;&#160;TskU8&#160;&#160;&#160;<b>stack_allocated</b> [(sizeof(TskAny *)+sizeof(const <br class="typebreak" />
-&#160;&#160;&#160;&#160;&#160;&#160;<a class="el" href="structTskType.html">TskType</a> *)+(-(sizeof(TskAny <br class="typebreak" />
-&#160;&#160;&#160;&#160;&#160;&#160;*)+sizeof(const <a class="el" href="structTskType.html">TskType</a> <br class="typebreak" />
-&#160;&#160;&#160;&#160;&#160;&#160;*)) &amp;(alignof(max_align_t) <br class="typebreak" />
-&#160;&#160;&#160;&#160;&#160;&#160;- 1))) - sizeof(const <a class="el" href="structTskType.html">TskType</a> *)]&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
-<tr class="separator:a6e60473c244aad1be25458f5be2f93ab"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab65a8e024971c00a265351f93d49bc71" id="r_ab65a8e024971c00a265351f93d49bc71"><td class="memItemLeft" >
+&#160;&#160;&#160;TskU8&#160;&#160;&#160;<b>stack_allocated</b> [TSK_ALIGN_UP(sizeof(TskAny <br class="typebreak" />
+&#160;&#160;&#160;&#160;&#160;&#160;*)+sizeof(const <a class="el" href="structTskType.html">TskType</a> *),<br class="typebreak" />
+&#160;&#160;&#160;&#160;&#160;&#160; alignof(max_align_t)) <br class="typebreak" />
+&#160;&#160;&#160;&#160;&#160;&#160;- sizeof(const <a class="el" href="structTskType.html">TskType</a> *)]&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
+<tr class="separator:ab65a8e024971c00a265351f93d49bc71"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8969f6a74f14e02acad2d1a7d6f22526" id="r_a8969f6a74f14e02acad2d1a7d6f22526"><td class="memItemLeft" >
 &#160;&#160;&#160;TskAny *&#160;&#160;&#160;<b>heap_allocated</b>&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
 <tr class="separator:a8969f6a74f14e02acad2d1a7d6f22526"><td class="memSeparator" colspan="2">&#160;</td></tr>
