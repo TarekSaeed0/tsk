@@ -43,15 +43,30 @@ struct TskListIterator {
 	TskList     *list;
 	TskListNode *current;
 };
-TskBoolean     tsk_list_iterator_is_valid(const TskType *iterator_type, const TskListIterator *iterator);
-const TskType *tsk_list_iterator_list_type(const TskType *iterator_type);
-const TskType *tsk_list_iterator_item_type(const TskType *iterator_type);
-TskBoolean     tsk_list_iterator_next(const TskType *iterator_type, TskListIterator *iterator, TskAny *item);
+TskBoolean     tsk_list_iterator_is_valid(const TskType *list_iterator_type, const TskListIterator *list_iterator);
+const TskType *tsk_list_iterator_element_type(const TskType *list_iterator_type);
+const TskType *tsk_list_iterator_item_type(const TskType *list_iterator_type);
+TskBoolean     tsk_list_iterator_next(const TskType *list_iterator_type, TskListIterator *list_iterator, TskAny *item);
 
-TskBoolean     tsk_list_iterator_type_is_valid(const TskType *iterator_type);
-const TskType *tsk_list_iterator_type(const TskType *list_type);
+TskBoolean     tsk_list_iterator_type_is_valid(const TskType *list_iterator_type);
+const TskType *tsk_list_iterator_type(const TskType *element_type);
 
 TskListIterator tsk_list_iterator(const TskType *list_type, TskList *list);
+
+typedef struct TskListIteratorConst TskListIteratorConst;
+struct TskListIteratorConst {
+	const TskList     *list;
+	const TskListNode *current;
+};
+TskBoolean     tsk_list_iterator_const_is_valid(const TskType *list_iterator_type, const TskListIteratorConst *list_iterator);
+const TskType *tsk_list_iterator_const_element_type(const TskType *list_iterator_type);
+const TskType *tsk_list_iterator_const_item_type(const TskType *list_iterator_type);
+TskBoolean     tsk_list_iterator_const_next(const TskType *list_iterator_type, TskListIteratorConst *list_iterator, TskAny *item);
+
+TskBoolean     tsk_list_iterator_const_type_is_valid(const TskType *list_iterator_type);
+const TskType *tsk_list_iterator_const_type(const TskType *element_type);
+
+TskListIteratorConst tsk_list_iterator_const(const TskType *list_type, const TskList *list);
 
 #ifdef __cplusplus
 }

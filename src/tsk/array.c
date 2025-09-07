@@ -1,6 +1,8 @@
+#define _GNU_SOURCE
 #include <tsk/array.h>
 
 #include <tsk/default_hasher.h>
+#include <tsk/reference.h>
 #include <tsk/trait/builder.h>
 #include <tsk/trait/clonable.h>
 #include <tsk/trait/comparable.h>
@@ -9,6 +11,8 @@
 #include <tsk/trait/equatable.h>
 #include <tsk/trait/hashable.h>
 #include <tsk/trait/hasher.h>
+#include <tsk/trait/iterable.h>
+#include <tsk/trait/iterator.h>
 
 #include <assert.h>
 #include <stdalign.h>
@@ -16,6 +20,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+// TODO: make array, array_view and array_view_const implement Iterable
 
 typedef struct TskArrayType TskArrayType;
 struct TskArrayType {
@@ -110,6 +116,18 @@ const TskType *tsk_array_element_type(const TskType *array_type) {
 	assert(tsk_array_type_is_valid(array_type));
 
 	return ((const TskArrayType *)array_type)->element_type;
+}
+TskAny *tsk_array_elements(const TskType *array_type, TskArray *array) {
+	assert(tsk_array_type_is_valid(array_type));
+	assert(tsk_array_is_valid(array_type, array));
+
+	return array->elements;
+}
+const TskAny *tsk_array_elements_const(const TskType *array_type, const TskArray *array) {
+	assert(tsk_array_type_is_valid(array_type));
+	assert(tsk_array_is_valid(array_type, array));
+
+	return array->elements;
 }
 TskUSize tsk_array_length(const TskType *array_type, const TskArray *array) {
 	assert(tsk_array_type_is_valid(array_type));
@@ -346,71 +364,26 @@ TskBoolean tsk_array_pop_back(const TskType *array_type, TskArray *array, TskAny
 	return TSK_TRUE;
 }
 TskOrdering tsk_array_compare(const TskType *array_type, const TskArray *array_1, const TskArray *array_2) {
-	assert(tsk_array_type_is_valid(array_type));
-	assert(tsk_array_is_valid(array_type, array_1));
-	assert(tsk_array_is_valid(array_type, array_2));
-	assert(tsk_type_has_trait(tsk_array_element_type(array_type), TSK_TRAIT_ID_COMPARABLE));
-
-	for (TskUSize i = 0; i < tsk_array_length(array_type, array_1) && i < tsk_array_length(array_type, array_2); i++) {
-		TskOrdering ordering = tsk_trait_comparable_compare(
-		    tsk_array_element_type(array_type),
-		    tsk_array_get_const(array_type, array_1, i),
-		    tsk_array_get_const(array_type, array_2, i)
-		);
-		if (ordering != TSK_ORDERING_EQUAL) {
-			return ordering;
-		}
-	}
-
-	return (tsk_array_length(array_type, array_1) > tsk_array_length(array_type, array_2)) -
-	       (tsk_array_length(array_type, array_1) < tsk_array_length(array_type, array_2));
+	return tsk_array_view_const_compare(
+	    tsk_array_view_type(tsk_array_element_type(array_type)),
+	    tsk_array_view_const(array_type, array_1),
+	    tsk_array_view_const(array_type, array_2)
+	);
 }
 TskBoolean tsk_array_equals(const TskType *array_type, const TskArray *array_1, const TskArray *array_2) {
-	assert(tsk_array_type_is_valid(array_type));
-	assert(tsk_array_is_valid(array_type, array_1));
-	assert(tsk_array_is_valid(array_type, array_2));
-	assert(tsk_type_has_trait(tsk_array_element_type(array_type), TSK_TRAIT_ID_EQUATABLE));
-
-	if (tsk_array_length(array_type, array_1) != tsk_array_length(array_type, array_2)) {
-		return TSK_FALSE;
-	}
-
-	for (TskUSize i = 0; i < tsk_array_length(array_type, array_1); i++) {
-		if (!tsk_trait_equatable_equals(
-		        tsk_array_element_type(array_type),
-		        tsk_array_get_const(array_type, array_1, i),
-		        tsk_array_get_const(array_type, array_2, i)
-		    )) {
-			return TSK_FALSE;
-		}
-	}
-
-	return TSK_TRUE;
+	return tsk_array_view_const_equals(
+	    tsk_array_view_type(tsk_array_element_type(array_type)),
+	    tsk_array_view_const(array_type, array_1),
+	    tsk_array_view_const(array_type, array_2)
+	);
 }
 TskEmpty tsk_array_hash(const TskType *array_type, const TskArray *array, const TskType *hasher_type, TskAny *hasher) {
-	assert(tsk_array_type_is_valid(array_type));
-	assert(tsk_array_is_valid(array_type, array));
-	assert(tsk_type_has_trait(tsk_array_element_type(array_type), TSK_TRAIT_ID_COMPARABLE));
-	assert(tsk_type_is_valid(hasher_type));
-	assert(tsk_type_has_trait(hasher_type, TSK_TRAIT_ID_HASHER));
-	assert(hasher != TSK_NULL);
-
-	TskUSize length = tsk_array_length(array_type, array);
-	tsk_trait_hasher_combine(
+	tsk_array_view_const_hash(
+	    tsk_array_view_type(tsk_array_element_type(array_type)),
+	    tsk_array_view_const(array_type, array),
 	    hasher_type,
-	    hasher,
-	    (const TskU8 *)&length,
-	    sizeof(length)
+	    hasher
 	);
-
-	for (TskUSize i = 0; i < tsk_array_length(array_type, array); i++) {
-		tsk_trait_hashable_hash(
-		    tsk_array_element_type(array_type),
-		    tsk_array_get_const(array_type, array, i),
-		    hasher_type,
-		    hasher
-		);
-	}
 }
 
 TskEmpty tsk_array_type_trait_droppable_drop(const TskType *droppable_type, TskAny *droppable) {
@@ -427,6 +400,18 @@ TskBoolean tsk_array_type_trait_equatable_equals(const TskType *equatable_type, 
 }
 TskEmpty tsk_array_type_trait_hashable_hash(const TskType *hashable_type, const TskAny *hashable, const TskType *hasher_type, TskAny *hasher) {
 	tsk_array_hash(hashable_type, hashable, hasher_type, hasher);
+}
+const TskType *tsk_array_type_trait_iterable_iterator_type(const TskType *iterable_type) {
+	return tsk_array_iterator_type(iterable_type);
+}
+TskEmpty tsk_array_type_trait_iterable_iterator(const TskType *iterable_type, TskAny *iterable, TskAny *iterator) {
+	*(TskArrayIterator *)iterator = tsk_array_iterator(iterable_type, iterable);
+}
+const TskType *tsk_array_type_trait_iterable_const_iterator_type(const TskType *iterable_type) {
+	return tsk_array_iterator_const_type(iterable_type);
+}
+TskEmpty tsk_array_type_trait_iterable_const_iterator(const TskType *iterable_type, const TskAny *iterable, TskAny *iterator) {
+	*(TskArrayIteratorConst *)iterator = tsk_array_iterator_const(iterable_type, iterable);
 }
 
 const TskTraitComplete tsk_array_type_trait_complete = {
@@ -447,6 +432,14 @@ const TskTraitEquatable tsk_array_type_trait_equatable = {
 };
 const TskTraitHashable tsk_array_type_trait_hashable = {
 	.hash = tsk_array_type_trait_hashable_hash,
+};
+const TskTraitIterable tsk_array_type_trait_iterable = {
+	.iterator_type = tsk_array_type_trait_iterable_iterator_type,
+	.iterator      = tsk_array_type_trait_iterable_iterator,
+};
+const TskTraitIterableConst tsk_array_type_trait_iterable_const = {
+	.iterator_type = tsk_array_type_trait_iterable_const_iterator_type,
+	.iterator      = tsk_array_type_trait_iterable_const_iterator,
 };
 
 #define TSK_ARRAY_TYPES_CAPACITY ((TskUSize)1 << 7)
@@ -520,6 +513,14 @@ const TskType *tsk_array_type(const TskType *element_type) {
 			.trait_data = &tsk_array_type_trait_hashable,
 		};
 	}
+	tsk_array_types[index].array_type_trait_table.entries[TSK_TRAIT_ID_ITERABLE & (tsk_array_types[index].array_type_trait_table.capacity - 1)] = (TskTypeTraitTableEntry){
+		.trait_id   = TSK_TRAIT_ID_ITERABLE,
+		.trait_data = &tsk_array_type_trait_iterable,
+	};
+	tsk_array_types[index].array_type_trait_table.entries[TSK_TRAIT_ID_ITERABLE_CONST & (tsk_array_types[index].array_type_trait_table.capacity - 1)] = (TskTypeTraitTableEntry){
+		.trait_id   = TSK_TRAIT_ID_ITERABLE_CONST,
+		.trait_data = &tsk_array_type_trait_iterable_const,
+	};
 
 	tsk_array_types[index].element_type = element_type;
 
@@ -538,684 +539,1260 @@ const TskType *tsk_array_type(const TskType *element_type) {
 	return array_type;
 }
 
-/* TskBoolean tsk_array_view_is_valid(TskArrayView array_view) {
-  return array_view.elements != TSK_NULL && tsk_type_is_valid(array_view.element_type) &&
-         tsk_type_has_trait(array_view.element_type, TSK_TRAIT_COMPLETE) && (array_view.elements != TSK_NULL || array_view.length == 0) && array_view.length <= SIZE_MAX / tsk_trait_complete_size(tsk_type_trait(array_view.element_type, TSK_TRAIT_COMPLETE));
-}
-TskArrayView tsk_array_view_slice(TskArrayView array_view, TskUSize start, TskUSize end, TskISize step) {
-  assert(tsk_array_view_is_valid(array_view));
-  assert(step != 0);
-
-  if (step > 0) {
-    assert(end <= tsk_array_view_length(array_view));
-    assert(start <= end);
-
-    TskArrayView array_view_slice = {
-      .element_type = tsk_array_view_element_type(array_view),
-      .elements     = (TskU8 *)array_view.elements + (start * tsk_trait_complete_size(tsk_type_trait(tsk_array_view_element_type(array_view), TSK_TRAIT_COMPLETE))),
-      .length       = (end - start + (TskUSize)step - 1) / (TskUSize)step,
-      .stride       = array_view.stride * step,
-    };
-
-    assert(tsk_array_view_is_valid(array_view_slice));
-
-    return array_view_slice;
-  }
-
-  assert(start <= tsk_array_view_length(array_view));
-  assert(end <= start);
-
-  TskArrayView array_view_slice = {
-    .element_type = tsk_array_view_element_type(array_view),
-    .elements     = (TskU8 *)array_view.elements + (start * tsk_trait_complete_size(tsk_type_trait(tsk_array_view_element_type(array_view), TSK_TRAIT_COMPLETE))) - tsk_trait_complete_size(tsk_type_trait(tsk_array_view_element_type(array_view), TSK_TRAIT_COMPLETE)),
-    .length       = (start - end + (TskUSize)-step - 1) / (TskUSize)-step,
-    .stride       = array_view.stride * step,
-  };
-
-  assert(tsk_array_view_is_valid(array_view_slice));
-
-  return array_view_slice;
-}
-const TskType *tsk_array_view_element_type(TskArrayView array_view) {
-  assert(tsk_array_view_is_valid(array_view));
-
-  return array_view.element_type;
-}
-TskUSize tsk_array_view_length(TskArrayView array_view) {
-  assert(tsk_array_view_is_valid(array_view));
-
-  return array_view.length;
-}
-TskBoolean tsk_array_view_is_empty(TskArrayView array_view) {
-  assert(tsk_array_view_is_valid(array_view));
-
-  return tsk_array_view_length(array_view) == 0;
-}
-TskISize tsk_array_view_stride(TskArrayView array_view) {
-  assert(tsk_array_view_is_valid(array_view));
-
-  return array_view.stride;
-}
-TskAny *tsk_array_view_get(TskArrayView array_view, TskUSize index) {
-  assert(tsk_array_view_is_valid(array_view));
-  assert(index < tsk_array_view_length(array_view));
-
-  if (array_view.stride > 0) {
-    return (TskU8 *)array_view.elements + (index * (TskUSize)array_view.stride * tsk_trait_complete_size(tsk_type_trait(tsk_array_view_element_type(array_view), TSK_TRAIT_COMPLETE)));
-  }
-
-  return (TskU8 *)array_view.elements - (index * (TskUSize)-array_view.stride * tsk_trait_complete_size(tsk_type_trait(tsk_array_view_element_type(array_view), TSK_TRAIT_COMPLETE)));
-}
-TskAny *tsk_array_view_front(TskArrayView array_view) {
-  assert(tsk_array_view_is_valid(array_view));
-
-  if (tsk_array_view_is_empty(array_view)) {
-    return TSK_NULL;
-  }
-
-  return tsk_array_view_get(array_view, 0);
-}
-TskAny *tsk_array_view_back(TskArrayView array_view) {
-  assert(tsk_array_view_is_valid(array_view));
-
-  if (tsk_array_view_is_empty(array_view)) {
-    return TSK_NULL;
-  }
-
-  return tsk_array_view_get(array_view, tsk_array_view_length(array_view) - 1);
-}
-TskEmpty tsk_array_view_swap(TskArrayView array_view, TskUSize index_1, TskUSize index_2) {
-  assert(tsk_array_view_is_valid(array_view));
-  assert(index_1 < tsk_array_view_length(array_view));
-  assert(index_2 < tsk_array_view_length(array_view));
-
-  if (index_1 == index_2) {
-    return;
-  }
-
-  TskU8 *elements_1 = (TskU8 *)tsk_array_view_get(array_view, index_1);
-  TskU8 *elements_2 = (TskU8 *)tsk_array_view_get(array_view, index_2);
-  for (TskUSize i = 0; i < tsk_trait_complete_size(tsk_type_trait(tsk_array_view_element_type(array_view), TSK_TRAIT_COMPLETE)); i++) {
-    TskU8 byte    = elements_1[i];
-    elements_1[i] = elements_2[i];
-    elements_2[i] = byte;
-  }
-}
-TskBoolean tsk_array_view_linear_search(TskArrayView array_view, const TskAny *element, TskUSize *index) {
-  return tsk_array_view_const_binary_search(tsk_array_view_to_const(array_view), element, index);
-}
-TskBoolean tsk_array_view_binary_search(TskArrayView array_view, const TskAny *element, TskUSize *index) {
-  return tsk_array_view_const_binary_search(tsk_array_view_to_const(array_view), element, index);
-}
-TskUSize tsk_array_view_lower_bound(TskArrayView array_view, const TskAny *element) {
-  return tsk_array_view_const_lower_bound(tsk_array_view_to_const(array_view), element);
-}
-TskUSize tsk_array_view_upper_bound(TskArrayView array_view, const TskAny *element) {
-  return tsk_array_view_const_upper_bound(tsk_array_view_to_const(array_view), element);
-}
-TskEmpty tsk_array_view_equal_range(TskArrayView array_view, const TskAny *element, TskUSize *start, TskUSize *end) {
-  tsk_array_view_const_equal_range(tsk_array_view_to_const(array_view), element, start, end);
-}
-TskEmpty tsk_array_view_sort(TskArrayView array_view) {
-  assert(tsk_array_view_is_valid(array_view));
-  assert(tsk_type_has_trait(tsk_array_view_element_type(array_view), TSK_TRAIT_COMPARABLE));
-
-  // PERF: find a way to sort, without allocating a buffer and copying the elements
-
-  alignas(max_align_t) TskU8 buffer[1028];
-
-  TskUSize elements_size = tsk_array_view_length(array_view) * tsk_trait_complete_size(tsk_type_trait(tsk_array_view_element_type(array_view), TSK_TRAIT_COMPLETE));
-  TskAny  *elements      = TSK_NULL;
-  if (elements_size > sizeof(buffer)) {
-    elements = malloc(elements_size);
-    assert(elements != TSK_NULL);
-  } else {
-    elements = buffer;
-  }
-
-  for (TskUSize i = 0; i < tsk_array_view_length(array_view); i++) {
-    memcpy(
-        (TskU8 *)elements + (i * tsk_trait_complete_size(tsk_type_trait(tsk_array_view_element_type(array_view), TSK_TRAIT_COMPLETE))),
-        tsk_array_view_get(array_view, i),
-        tsk_trait_complete_size(tsk_type_trait(tsk_array_view_element_type(array_view), TSK_TRAIT_COMPLETE))
-    );
-  }
-
-  qsort(
-      elements,
-      tsk_array_view_const_length(tsk_array_view_to_const(array_view)),
-      tsk_trait_complete_size(tsk_type_trait(tsk_array_view_element_type(array_view), TSK_TRAIT_COMPLETE)),
-      ((const TskTraitComparable *)tsk_type_trait(tsk_array_view_element_type(array_view), TSK_TRAIT_COMPARABLE))->compare
-  );
-
-  for (TskUSize i = 0; i < tsk_array_view_length(array_view); i++) {
-    memcpy(
-        tsk_array_view_get(array_view, i),
-        (TskU8 *)elements + (i * tsk_trait_complete_size(tsk_type_trait(tsk_array_view_element_type(array_view), TSK_TRAIT_COMPLETE))),
-        tsk_trait_complete_size(tsk_type_trait(tsk_array_view_element_type(array_view), TSK_TRAIT_COMPLETE))
-    );
-  }
-
-  if (elements_size > sizeof(buffer)) {
-    free(elements);
-  }
-}
-TskBoolean tsk_array_view_is_sorted(TskArrayView array_view) {
-  return tsk_array_view_const_is_sorted(tsk_array_view_to_const(array_view));
-}
-TskUSize tsk_array_view_sorted_until(TskArrayView array_view) {
-  return tsk_array_view_const_sorted_until(tsk_array_view_to_const(array_view));
-}
-TskEmpty tsk_array_view_partition(TskArrayView array_view, TskBoolean (*predicate)(const TskAny *element)) {
-  assert(tsk_array_view_is_valid(array_view));
-  assert(predicate != TSK_NULL);
-
-  TskUSize i = 0;
-  for (; i < tsk_array_view_length(array_view); i++) {
-    if (!predicate(tsk_array_view_get(array_view, i))) {
-      break;
-    }
-  }
-
-  for (TskUSize j = i + 1; j < tsk_array_view_length(array_view); j++) {
-    if (predicate(tsk_array_view_get(array_view, j))) {
-      tsk_array_view_swap(array_view, i, j);
-      i++;
-    }
-  }
-}
-TskBoolean tsk_array_view_is_partitioned(TskArrayView array_view, TskBoolean (*predicate)(const TskAny *element)) {
-  return tsk_array_view_const_is_partitioned(tsk_array_view_to_const(array_view), predicate);
-}
-TskUSize tsk_array_view_partition_point(TskArrayView array_view, TskBoolean (*predicate)(const TskAny *element)) {
-  return tsk_array_view_const_partition_point(tsk_array_view_to_const(array_view), predicate);
-}
-TskEmpty tsk_array_view_reverse(TskArrayView array_view) {
-  assert(tsk_array_view_is_valid(array_view));
-
-  for (TskUSize i = 0; i < tsk_array_view_length(array_view) / 2; i++) {
-    tsk_array_view_swap(array_view, i, tsk_array_view_length(array_view) - 1 - i);
-  }
-}
-TskOrdering tsk_array_view_compare(TskArrayView array_view_1, TskArrayView array_view_2) {
-  return tsk_array_view_const_compare(
-      tsk_array_view_to_const(array_view_1),
-      tsk_array_view_to_const(array_view_2)
-  );
-}
-TskBoolean tsk_array_view_equals(TskArrayView array_view_1, TskArrayView array_view_2) {
-  return tsk_array_view_const_equals(
-      tsk_array_view_to_const(array_view_1),
-      tsk_array_view_to_const(array_view_2)
-  );
-}
-TskEmpty tsk_array_view_hash(TskArrayView array_view, const TskTraitHasher *trait_hasher, TskAny *hasher) {
-  tsk_array_view_const_hash(tsk_array_view_to_const(array_view), trait_hasher, hasher);
-}
-
-static const TskTraitComplete tsk_array_view_trait_complete = {
-  .size      = sizeof(TskArrayView),
-  .alignment = alignof(TskArrayView),
+typedef struct TskArrayViewType TskArrayViewType;
+struct TskArrayViewType {
+	TskType                array_view_type;
+	TskCharacter           array_view_type_name[40];
+	TskTypeTraitTable      array_view_type_trait_table;
+	TskTypeTraitTableEntry array_view_type_trait_table_entries[16];
+	const TskType         *element_type;
 };
 
-static const TskTraitDroppable tsk_array_view_trait_droppable = {
-  .drop = TSK_NULL,
+TskBoolean tsk_array_view_is_valid(const TskType *array_view_type, TskArrayView array_view) {
+	assert(tsk_array_view_type_is_valid(array_view_type));
+
+	return array_view.elements != TSK_NULL || array_view.length == 0;
+}
+TskArrayView tsk_array_view_new(const TskType *array_view_type, TskAny *elements, TskUSize length, TskISize stride) {
+	assert(tsk_array_view_type_is_valid(array_view_type));
+	assert(elements != TSK_NULL || length == 0);
+	assert(stride != 0);
+
+	TskArrayView array_view = {
+		.elements = elements,
+		.length   = length,
+		.stride   = stride,
+	};
+
+	assert(tsk_array_view_is_valid(array_view_type, array_view));
+
+	return array_view;
+}
+TskArrayView tsk_array_view_slice(const TskType *array_view_type, TskArrayView array_view, TskUSize start, TskUSize end, TskISize step) {
+	assert(tsk_array_view_type_is_valid(array_view_type));
+	assert(tsk_array_view_is_valid(array_view_type, array_view));
+	assert(step != 0);
+
+	if (step > 0) {
+		assert(end <= tsk_array_view_length(array_view_type, array_view));
+		assert(start <= end);
+
+		TskArrayView array_view_slice = {
+			.element_type = tsk_array_view_element_type(array_view_type),
+			.elements     = (TskU8 *)tsk_array_view_elements(array_view_type, array_view) + (start * tsk_trait_complete_size(tsk_array_view_element_type(array_view_type))),
+			.length       = (end - start + (TskUSize)step - 1) / (TskUSize)step,
+			.stride       = tsk_array_view_stride(array_view_type, array_view) * step,
+		};
+
+		assert(tsk_array_view_is_valid(array_view_type, array_view_slice));
+
+		return array_view_slice;
+	}
+
+	assert(start <= tsk_array_view_length(array_view_type, array_view));
+	assert(end <= start);
+
+	TskArrayView array_view_slice = {
+		.elements = (TskU8 *)tsk_array_view_elements(array_view_type, array_view) + (start * tsk_trait_complete_size(tsk_array_view_element_type(array_view_type))) - tsk_trait_complete_size(tsk_array_view_element_type(array_view_type)),
+		.length   = (start - end + (TskUSize)-step - 1) / (TskUSize)-step,
+		.stride   = tsk_array_view_stride(array_view_type, array_view) * step,
+	};
+
+	assert(tsk_array_view_is_valid(array_view_type, array_view_slice));
+
+	return array_view_slice;
+}
+const TskType *tsk_array_view_element_type(const TskType *array_view_type) {
+	assert(tsk_array_view_type_is_valid(array_view_type));
+
+	return ((const TskArrayViewType *)array_view_type)->element_type;
+}
+TskAny *tsk_array_view_elements(const TskType *array_view_type, TskArrayView array_view) {
+	assert(tsk_array_view_type_is_valid(array_view_type));
+	assert(tsk_array_view_is_valid(array_view_type, array_view));
+
+	return array_view.elements;
+}
+TskUSize tsk_array_view_length(const TskType *array_view_type, TskArrayView array_view) {
+	assert(tsk_array_view_type_is_valid(array_view_type));
+	assert(tsk_array_view_is_valid(array_view_type, array_view));
+
+	return array_view.length;
+}
+TskBoolean tsk_array_view_is_empty(const TskType *array_view_type, TskArrayView array_view) {
+	assert(tsk_array_view_type_is_valid(array_view_type));
+	assert(tsk_array_view_is_valid(array_view_type, array_view));
+
+	return tsk_array_view_length(array_view_type, array_view) == 0;
+}
+TskISize tsk_array_view_stride(const TskType *array_view_type, TskArrayView array_view) {
+	assert(tsk_array_view_type_is_valid(array_view_type));
+	assert(tsk_array_view_is_valid(array_view_type, array_view));
+
+	return array_view.stride;
+}
+TskAny *tsk_array_view_get(const TskType *array_view_type, TskArrayView array_view, TskUSize index) {
+	assert(tsk_array_view_type_is_valid(array_view_type));
+	assert(tsk_array_view_is_valid(array_view_type, array_view));
+	assert(index < tsk_array_view_length(array_view_type, array_view));
+
+	if (tsk_array_view_stride(array_view_type, array_view) > 0) {
+		return (TskU8 *)tsk_array_view_elements(array_view_type, array_view) + (index * (TskUSize)tsk_array_view_stride(array_view_type, array_view) * tsk_trait_complete_size(tsk_array_view_element_type(array_view_type)));
+	}
+
+	return (TskU8 *)tsk_array_view_elements(array_view_type, array_view) - (index * (TskUSize)-tsk_array_view_stride(array_view_type, array_view) * tsk_trait_complete_size(tsk_array_view_element_type(array_view_type)));
+}
+TskAny *tsk_array_view_front(const TskType *array_view_type, TskArrayView array_view) {
+	assert(tsk_array_view_type_is_valid(array_view_type));
+	assert(tsk_array_view_is_valid(array_view_type, array_view));
+
+	if (tsk_array_view_is_empty(array_view_type, array_view)) {
+		return TSK_NULL;
+	}
+
+	return tsk_array_view_get(array_view_type, array_view, 0);
+}
+TskAny *tsk_array_view_back(const TskType *array_view_type, TskArrayView array_view) {
+	assert(tsk_array_view_type_is_valid(array_view_type));
+	assert(tsk_array_view_is_valid(array_view_type, array_view));
+
+	if (tsk_array_view_is_empty(array_view_type, array_view)) {
+		return TSK_NULL;
+	}
+
+	return tsk_array_view_get(array_view_type, array_view, tsk_array_view_length(array_view_type, array_view) - 1);
+}
+TskEmpty tsk_array_view_swap(const TskType *array_view_type, TskArrayView array_view, TskUSize index_1, TskUSize index_2) {
+	assert(tsk_array_view_type_is_valid(array_view_type));
+	assert(tsk_array_view_is_valid(array_view_type, array_view));
+	assert(index_1 < tsk_array_view_length(array_view_type, array_view));
+	assert(index_2 < tsk_array_view_length(array_view_type, array_view));
+
+	if (index_1 == index_2) {
+		return;
+	}
+
+	TskU8 *elements_1 = (TskU8 *)tsk_array_view_get(array_view_type, array_view, index_1);
+	TskU8 *elements_2 = (TskU8 *)tsk_array_view_get(array_view_type, array_view, index_2);
+	for (TskUSize i = 0; i < tsk_trait_complete_size(tsk_array_view_element_type(array_view_type)); i++) {
+		TskU8 byte    = elements_1[i];
+		elements_1[i] = elements_2[i];
+		elements_2[i] = byte;
+	}
+}
+#if defined(__GLIBC__) || (defined(__FreeBSD__) && defined(qsort_r))
+	#define QSORT_R_LINUX
+#elif defined(__APPLE__) || defined(__MACH__) || defined(__DARWIN__) || (defined(__FreeBSD__) && !defined(qsort_r)) || defined(__DragonFly__)
+	#define QSORT_R_BSD
+#elif defined(_WIN32) || defined(_WIN64) || defined(__WINDOWS__) || defined(__MINGW32__) || defined(__MINGW64__)
+	#define QSORT_S_WINDOWS
+#else
+	#error "Platform not supported"
+#endif
+static int tsk_array_view_sort_compare(
+#if defined(QSORT_R_LINUX)
+    const void *element_1,
+    const void *element_2,
+    void       *context
+#elif defined(QSORT_R_BSD) || defined(QSORT_S_WINDOWS)
+    void       *context,
+    const void *element_1,
+    const void *element_2
+#endif
+) {
+	const TskType *array_view_type = *(const TskType **)context;
+	return tsk_trait_comparable_compare(tsk_array_view_element_type(array_view_type), element_1, element_2);
+}
+TskEmpty tsk_array_view_sort(const TskType *array_view_type, TskArrayView array_view) {
+	assert(tsk_array_view_type_is_valid(array_view_type));
+	assert(tsk_array_view_is_valid(array_view_type, array_view));
+	assert(tsk_type_has_trait(tsk_array_view_element_type(array_view_type), TSK_TRAIT_ID_COMPARABLE));
+
+	// PERF: find a way to sort, without allocating a buffer and copying the elements
+
+	alignas(max_align_t) TskU8 buffer[1028];
+
+	TskUSize elements_size = tsk_array_view_length(array_view_type, array_view) * tsk_trait_complete_size(tsk_array_view_element_type(array_view_type));
+	TskAny  *elements      = TSK_NULL;
+	if (elements_size > sizeof(buffer)) {
+		elements = malloc(elements_size);
+		assert(elements != TSK_NULL);
+	} else {
+		elements = buffer;
+	}
+
+	for (TskUSize i = 0; i < tsk_array_view_length(array_view_type, array_view); i++) {
+		memcpy(
+		    (TskU8 *)elements + (i * tsk_trait_complete_size(tsk_array_view_element_type(array_view_type))),
+		    tsk_array_view_get(array_view_type, array_view, i),
+		    tsk_trait_complete_size(tsk_array_view_element_type(array_view_type))
+		);
+	}
+
+#if defined(QSORT_R_LINUX)
+	qsort_r(
+	    elements,
+	    tsk_array_view_length(array_view_type, array_view),
+	    tsk_trait_complete_size(tsk_array_view_element_type(array_view_type)),
+	    tsk_array_view_sort_compare,
+	    &array_view_type
+	);
+#elif defined(QSORT_R_BSD)
+	qsort_r(
+	    elements,
+	    tsk_array_view_length(array_view_type, array_view),
+	    tsk_trait_complete_size(tsk_array_view_element_type(array_view_type)),
+	    &array_view_type,
+	    tsk_array_view_sort_compare
+	);
+#elif defined(QSORT_S_WINDOWS)
+	qsort_s(
+	    elements,
+	    tsk_array_view_length(array_view_type, array_view),
+	    tsk_trait_complete_size(tsk_array_view_element_type(array_view_type)),
+	    tsk_array_view_sort_compare,
+	    &array_view_type
+	);
+#endif
+#undef QSORT_R_LINUX
+#undef QSORT_R_BSD
+#undef QSORT_S_WINDOWS
+
+	for (TskUSize i = 0; i < tsk_array_view_length(array_view_type, array_view); i++) {
+		memcpy(
+		    tsk_array_view_get(array_view_type, array_view, i),
+		    (TskU8 *)elements + (i * tsk_trait_complete_size(tsk_array_view_element_type(array_view_type))),
+		    tsk_trait_complete_size(tsk_array_view_element_type(array_view_type))
+		);
+	}
+
+	if (elements_size > sizeof(buffer)) {
+		free(elements);
+	}
+}
+TskEmpty tsk_array_view_partition(const TskType *array_view_type, TskArrayView array_view, TskBoolean (*predicate)(const TskAny *element)) {
+	assert(tsk_array_view_type_is_valid(array_view_type));
+	assert(tsk_array_view_is_valid(array_view_type, array_view));
+	assert(predicate != TSK_NULL);
+
+	TskUSize i = 0;
+	for (; i < tsk_array_view_length(array_view_type, array_view); i++) {
+		if (!predicate(tsk_array_view_get(array_view_type, array_view, i))) {
+			break;
+		}
+	}
+
+	for (TskUSize j = i + 1; j < tsk_array_view_length(array_view_type, array_view); j++) {
+		if (predicate(tsk_array_view_get(array_view_type, array_view, j))) {
+			tsk_array_view_swap(array_view_type, array_view, i, j);
+			i++;
+		}
+	}
+}
+TskEmpty tsk_array_view_reverse(const TskType *array_view_type, TskArrayView array_view) {
+	assert(tsk_array_view_type_is_valid(array_view_type));
+	assert(tsk_array_view_is_valid(array_view_type, array_view));
+
+	for (TskUSize i = 0; i < tsk_array_view_length(array_view_type, array_view) / 2; i++) {
+		tsk_array_view_swap(array_view_type, array_view, i, tsk_array_view_length(array_view_type, array_view) - 1 - i);
+	}
+}
+TskOrdering tsk_array_view_compare(const TskType *array_view_type, TskArrayView array_view_1, TskArrayView array_view_2) {
+	return tsk_array_view_const_compare(
+	    tsk_array_view_const_type(tsk_array_view_element_type(array_view_type)),
+	    tsk_array_view_as_const(array_view_type, array_view_1),
+	    tsk_array_view_as_const(array_view_type, array_view_2)
+	);
+}
+TskBoolean tsk_array_view_equals(const TskType *array_view_type, TskArrayView array_view_1, TskArrayView array_view_2) {
+	return tsk_array_view_const_equals(
+	    tsk_array_view_const_type(tsk_array_view_element_type(array_view_type)),
+	    tsk_array_view_as_const(array_view_type, array_view_1),
+	    tsk_array_view_as_const(array_view_type, array_view_2)
+	);
+}
+TskEmpty tsk_array_view_hash(const TskType *array_view_type, TskArrayView array_view, const TskType *hasher_type, TskAny *hasher) {
+	tsk_array_view_const_hash(
+	    tsk_array_view_const_type(tsk_array_view_element_type(array_view_type)),
+	    tsk_array_view_as_const(array_view_type, array_view),
+	    hasher_type,
+	    hasher
+	);
+}
+
+typedef struct TskArrayViewConstType TskArrayViewConstType;
+struct TskArrayViewConstType {
+	TskType                array_view_const_type;
+	TskCharacter           array_view_const_type_name[40];
+	TskTypeTraitTable      array_view_const_type_trait_table;
+	TskTypeTraitTableEntry array_view_const_type_trait_table_entries[16];
+	const TskType         *element_type;
 };
 
-static const TskTraitClonable tsk_array_view_trait_clonable = {
-  .trait_complete = &tsk_array_view_trait_complete,
-  .clone          = TSK_NULL,
+TskOrdering tsk_array_view_type_trait_comparable_compare(const TskType *comparable_type, const TskAny *comparable_1, const TskAny *comparable_2) {
+	return tsk_array_view_compare(comparable_type, *(const TskArrayView *)comparable_1, *(const TskArrayView *)comparable_2);
+}
+TskBoolean tsk_array_view_type_trait_equatable_equals(const TskType *equatable_type, const TskAny *equatable_1, const TskAny *equatable_2) {
+	return tsk_array_view_equals(equatable_type, *(const TskArrayView *)equatable_1, *(const TskArrayView *)equatable_2);
+}
+TskEmpty tsk_array_view_type_trait_hashable_hash(const TskType *hashable_type, const TskAny *hashable, const TskType *hasher_type, TskAny *hasher) {
+	tsk_array_view_hash(hashable_type, *(const TskArrayView *)hashable, hasher_type, hasher);
+}
+
+const TskTraitComplete tsk_array_view_type_trait_complete = {
+	.size      = sizeof(TskArrayView),
+	.alignment = alignof(TskArrayView),
+};
+const TskTraitDroppable tsk_array_view_type_trait_droppable = {
+	.drop = TSK_NULL,
+};
+const TskTraitClonable tsk_array_view_type_trait_clonable = {
+	.clone = TSK_NULL,
+};
+const TskTraitComparable tsk_array_view_type_trait_comparable = {
+	.compare = tsk_array_view_type_trait_comparable_compare,
+};
+const TskTraitEquatable tsk_array_view_type_trait_equatable = {
+	.equals = tsk_array_view_type_trait_equatable_equals,
+};
+const TskTraitHashable tsk_array_view_type_trait_hashable = {
+	.hash = tsk_array_view_type_trait_hashable_hash,
 };
 
-static TskOrdering tsk_array_view_trait_comparable_compare(const TskAny *array_view_1, const TskAny *array_view_2) {
-  return tsk_array_view_compare(*(const TskArrayView *)array_view_1, *(const TskArrayView *)array_view_2);
+#define TSK_ARRAY_VIEW_TYPES_CAPACITY ((TskUSize)1 << 7)
+
+TskArrayViewType tsk_array_view_types[TSK_ARRAY_VIEW_TYPES_CAPACITY];
+
+TskBoolean tsk_array_view_type_is_valid(const TskType *array_view_type) {
+	return tsk_type_is_valid(array_view_type) &&
+	       &tsk_array_view_types[0] <= (const TskArrayViewType *)array_view_type && (const TskArrayViewType *)array_view_type < &tsk_array_view_types[TSK_ARRAY_VIEW_TYPES_CAPACITY];
 }
-static const TskTraitComparable tsk_array_view_trait_comparable = {
-  .compare = tsk_array_view_trait_comparable_compare,
-};
+const TskType *tsk_array_view_type(const TskType *element_type) {
+	assert(tsk_type_is_valid(element_type));
+	assert(tsk_type_has_trait(element_type, TSK_TRAIT_ID_COMPLETE));
 
-static TskBoolean tsk_array_view_type_equatable_equals(const TskAny *array_view_1, const TskAny *array_view_2) {
-  return tsk_array_view_equals(*(const TskArrayView *)array_view_1, *(const TskArrayView *)array_view_2);
+	const TskType             *hasher_type = tsk_trait_builder_built_type(tsk_default_hasher_builder_type);
+	alignas(max_align_t) TskU8 hasher[tsk_trait_complete_size(hasher_type)];
+	tsk_trait_builder_build(tsk_default_hasher_builder_type, tsk_default_hasher_builder, hasher);
+
+	tsk_trait_hasher_combine(hasher_type, hasher, (const TskU8 *)&element_type, sizeof(element_type)); // NOLINT(bugprone-sizeof-expression)
+	TskU64 hash = tsk_trait_hasher_finalize(hasher_type, hasher);
+
+	tsk_trait_droppable_drop(hasher_type, hasher);
+
+	TskUSize starting_index = hash & (TSK_ARRAY_VIEW_TYPES_CAPACITY - 1);
+	TskUSize index          = starting_index;
+	while (tsk_array_view_types[index].element_type != TSK_NULL) {
+		if (tsk_array_view_types[index].element_type == element_type) {
+			return &tsk_array_view_types[index].array_view_type;
+		}
+		index = (index + 1) & (TSK_ARRAY_VIEW_TYPES_CAPACITY - 1);
+		if (index == starting_index) {
+			return TSK_NULL;
+		}
+	}
+
+	tsk_array_view_types[index].array_view_type.trait_table                                                                                                         = &tsk_array_view_types[index].array_view_type_trait_table;
+	tsk_array_view_types[index].array_view_type_trait_table.entries                                                                                                 = tsk_array_view_types[index].array_view_type_trait_table_entries;
+	tsk_array_view_types[index].array_view_type_trait_table.capacity                                                                                                = sizeof(tsk_array_view_types[index].array_view_type_trait_table_entries) / sizeof(tsk_array_view_types[index].array_view_type_trait_table_entries[0]);
+
+	tsk_array_view_types[index].array_view_type_trait_table.entries[TSK_TRAIT_ID_COMPLETE & (tsk_array_view_types[index].array_view_type_trait_table.capacity - 1)] = (TskTypeTraitTableEntry){
+		.trait_id   = TSK_TRAIT_ID_COMPLETE,
+		.trait_data = &tsk_array_view_type_trait_complete,
+	};
+	if (tsk_type_has_trait(element_type, TSK_TRAIT_ID_DROPPABLE)) {
+		tsk_array_view_types[index].array_view_type_trait_table.entries[TSK_TRAIT_ID_DROPPABLE & (tsk_array_view_types[index].array_view_type_trait_table.capacity - 1)] = (TskTypeTraitTableEntry){
+			.trait_id   = TSK_TRAIT_ID_DROPPABLE,
+			.trait_data = &tsk_array_view_type_trait_droppable,
+		};
+	}
+	if (tsk_type_has_trait(element_type, TSK_TRAIT_ID_CLONABLE)) {
+		tsk_array_view_types[index].array_view_type_trait_table.entries[TSK_TRAIT_ID_CLONABLE & (tsk_array_view_types[index].array_view_type_trait_table.capacity - 1)] = (TskTypeTraitTableEntry){
+			.trait_id   = TSK_TRAIT_ID_CLONABLE,
+			.trait_data = &tsk_array_view_type_trait_clonable,
+		};
+	}
+	if (tsk_type_has_trait(element_type, TSK_TRAIT_ID_COMPARABLE)) {
+		tsk_array_view_types[index].array_view_type_trait_table.entries[TSK_TRAIT_ID_COMPARABLE & (tsk_array_view_types[index].array_view_type_trait_table.capacity - 1)] = (TskTypeTraitTableEntry){
+			.trait_id   = TSK_TRAIT_ID_COMPARABLE,
+			.trait_data = &tsk_array_view_type_trait_comparable,
+		};
+	}
+	if (tsk_type_has_trait(element_type, TSK_TRAIT_ID_EQUATABLE)) {
+		tsk_array_view_types[index].array_view_type_trait_table.entries[TSK_TRAIT_ID_EQUATABLE & (tsk_array_view_types[index].array_view_type_trait_table.capacity - 1)] = (TskTypeTraitTableEntry){
+			.trait_id   = TSK_TRAIT_ID_EQUATABLE,
+			.trait_data = &tsk_array_view_type_trait_equatable,
+		};
+	}
+	if (tsk_type_has_trait(element_type, TSK_TRAIT_ID_HASHABLE)) {
+		tsk_array_view_types[index].array_view_type_trait_table.entries[TSK_TRAIT_ID_HASHABLE & (tsk_array_view_types[index].array_view_type_trait_table.capacity - 1)] = (TskTypeTraitTableEntry){
+			.trait_id   = TSK_TRAIT_ID_HASHABLE,
+			.trait_data = &tsk_array_view_type_trait_hashable,
+		};
+	}
+
+	tsk_array_view_types[index].element_type = element_type;
+
+	(void)snprintf(
+	    tsk_array_view_types[index].array_view_type_name,
+	    sizeof(tsk_array_view_types[index].array_view_type_name),
+	    "TskArrayView<%s>",
+	    tsk_type_name(element_type)
+	);
+	tsk_array_view_types[index].array_view_type.name = tsk_array_view_types[index].array_view_type_name;
+
+	const TskType *array_view_type                   = &tsk_array_view_types[index].array_view_type;
+
+	assert(tsk_array_view_type_is_valid(array_view_type));
+
+	return array_view_type;
 }
-static const TskTraitEquatable tsk_array_view_trait_equatable = {
-  .equals = tsk_array_view_type_equatable_equals,
-};
 
-static TskEmpty tsk_array_view_trait_hashable_hash(const TskAny *array_view, const TskTraitHasher *trait_hasher, TskAny *hasher) {
-  tsk_array_view_hash(*(const TskArrayView *)array_view, trait_hasher, hasher);
+TskArrayView tsk_array_view(const TskType *array_type, TskArray *array) {
+	assert(tsk_array_type_is_valid(array_type));
+	assert(tsk_array_is_valid(array_type, array));
+
+	TskArrayView array_view = {
+		.elements = tsk_array_elements(array_type, array),
+		.length   = tsk_array_length(array_type, array),
+		.stride   = 1,
+	};
+
+	assert(tsk_array_view_is_valid(tsk_array_view_type(tsk_array_element_type(array_type)), array_view));
+
+	return array_view;
 }
-static const TskTraitHashable tsk_array_view_trait_hashable = {
-  .hash = tsk_array_view_trait_hashable_hash,
-};
 
-const TskType tsk_array_view_type = {
-  .name   = "TskArrayView",
-  .traits = {
-      [TSK_TRAIT_COMPLETE]   = &tsk_array_view_trait_complete,
-      [TSK_TRAIT_DROPPABLE]  = &tsk_array_view_trait_droppable,
-      [TSK_TRAIT_CLONABLE]   = &tsk_array_view_trait_clonable,
-      [TSK_TRAIT_COMPARABLE] = &tsk_array_view_trait_comparable,
-      [TSK_TRAIT_EQUATABLE]  = &tsk_array_view_trait_equatable,
-      [TSK_TRAIT_HASHABLE]   = &tsk_array_view_trait_hashable,
-  },
-};
+TskBoolean tsk_array_view_const_is_valid(const TskType *array_view_type, TskArrayViewConst array_view) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
 
-TskBoolean tsk_array_view_const_is_valid(TskArrayViewConst array_view) {
-  return array_view.elements != TSK_NULL && tsk_type_is_valid(array_view.element_type) &&
-         tsk_type_has_trait(array_view.element_type, TSK_TRAIT_COMPLETE) && (array_view.elements != TSK_NULL || array_view.length == 0) && array_view.length <= SIZE_MAX / tsk_trait_complete_size(tsk_type_trait(array_view.element_type, TSK_TRAIT_COMPLETE));
+	return array_view.elements != TSK_NULL || array_view.length == 0;
 }
-TskArrayViewConst tsk_array_view_const_slice(TskArrayViewConst array_view, TskUSize start, TskUSize end, TskISize step) {
-  assert(tsk_array_view_const_is_valid(array_view));
-  assert(step != 0);
+TskArrayViewConst tsk_array_view_const_new(const TskType *array_view_type, const TskAny *elements, TskUSize length, TskISize stride) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
+	assert(elements != TSK_NULL || length == 0);
+	assert(stride != 0);
 
-  if (step > 0) {
-    assert(end <= tsk_array_view_const_length(array_view));
-    assert(start <= end);
+	TskArrayViewConst array_view = {
+		.elements = elements,
+		.length   = length,
+		.stride   = stride,
+	};
 
-    TskArrayViewConst array_view_slice = {
-      .element_type = tsk_array_view_const_element_type(array_view),
-      .elements     = (const TskU8 *)array_view.elements + (start * tsk_trait_complete_size(tsk_type_trait(tsk_array_view_const_element_type(array_view), TSK_TRAIT_COMPLETE))),
-      .length       = (end - start + (TskUSize)step - 1) / (TskUSize)step,
-      .stride       = array_view.stride * step,
-    };
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view));
 
-    assert(tsk_array_view_const_is_valid(array_view_slice));
-
-    return array_view_slice;
-  }
-
-  assert(start <= tsk_array_view_const_length(array_view));
-  assert(end <= start);
-
-  TskArrayViewConst array_view_slice = {
-    .element_type = tsk_array_view_const_element_type(array_view),
-    .elements     = (const TskU8 *)array_view.elements + (start * tsk_trait_complete_size(tsk_type_trait(tsk_array_view_const_element_type(array_view), TSK_TRAIT_COMPLETE))) - tsk_trait_complete_size(tsk_type_trait(tsk_array_view_const_element_type(array_view), TSK_TRAIT_COMPLETE)),
-    .length       = (start - end + (TskUSize)-step - 1) / (TskUSize)-step,
-    .stride       = array_view.stride * step,
-  };
-
-  assert(tsk_array_view_const_is_valid(array_view_slice));
-
-  return array_view_slice;
+	return array_view;
 }
-const TskType *tsk_array_view_const_element_type(TskArrayViewConst array_view) {
-  assert(tsk_array_view_const_is_valid(array_view));
+TskArrayViewConst tsk_array_view_const_slice(const TskType *array_view_type, TskArrayViewConst array_view, TskUSize start, TskUSize end, TskISize step) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view));
+	assert(step != 0);
 
-  return array_view.element_type;
+	if (step > 0) {
+		assert(end <= tsk_array_view_const_length(array_view_type, array_view));
+		assert(start <= end);
+
+		TskArrayViewConst array_view_slice = {
+			.elements = (const TskU8 *)tsk_array_view_const_elements(array_view_type, array_view) + (start * tsk_trait_complete_size(tsk_array_view_const_element_type(array_view_type))),
+			.length   = (end - start + (TskUSize)step - 1) / (TskUSize)step,
+			.stride   = tsk_array_view_const_stride(array_view_type, array_view) * step,
+		};
+
+		assert(tsk_array_view_const_is_valid(array_view_type, array_view_slice));
+
+		return array_view_slice;
+	}
+
+	assert(start <= tsk_array_view_const_length(array_view_type, array_view));
+	assert(end <= start);
+
+	TskArrayViewConst array_view_slice = {
+		.elements = (const TskU8 *)tsk_array_view_const_elements(array_view_type, array_view) + (start * tsk_trait_complete_size(tsk_array_view_const_element_type(array_view_type))) - tsk_trait_complete_size(tsk_array_view_const_element_type(array_view_type)),
+		.length   = (start - end + (TskUSize)-step - 1) / (TskUSize)-step,
+		.stride   = tsk_array_view_const_stride(array_view_type, array_view) * step,
+	};
+
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view_slice));
+
+	return array_view_slice;
 }
-TskUSize tsk_array_view_const_length(TskArrayViewConst array_view) {
-  assert(tsk_array_view_const_is_valid(array_view));
+const TskType *tsk_array_view_const_element_type(const TskType *array_view_type) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
 
-  return array_view.length;
+	return ((const TskArrayViewConstType *)array_view_type)->element_type;
 }
-TskBoolean tsk_array_view_const_is_empty(TskArrayViewConst array_view) {
-  assert(tsk_array_view_const_is_valid(array_view));
+const TskAny *tsk_array_view_const_elements(const TskType *array_view_type, TskArrayViewConst array_view) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view));
 
-  return tsk_array_view_const_length(array_view) == 0;
+	return array_view.elements;
 }
-TskISize tsk_array_view_const_stride(TskArrayViewConst array_view) {
-  assert(tsk_array_view_const_is_valid(array_view));
+TskUSize tsk_array_view_const_length(const TskType *array_view_type, TskArrayViewConst array_view) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view));
 
-  return array_view.stride;
+	return array_view.length;
 }
-const TskAny *tsk_array_view_const_get(TskArrayViewConst array_view, TskUSize index) {
-  assert(tsk_array_view_const_is_valid(array_view));
-  assert(index < tsk_array_view_const_length(array_view));
+TskBoolean tsk_array_view_const_is_empty(const TskType *array_view_type, TskArrayViewConst array_view) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view));
 
-  if (array_view.stride > 0) {
-    return (const TskU8 *)array_view.elements + (index * (TskUSize)array_view.stride * tsk_trait_complete_size(tsk_type_trait(tsk_array_view_const_element_type(array_view), TSK_TRAIT_COMPLETE)));
-  }
-
-  return (const TskU8 *)array_view.elements - (index * (TskUSize)-array_view.stride * tsk_trait_complete_size(tsk_type_trait(tsk_array_view_const_element_type(array_view), TSK_TRAIT_COMPLETE)));
+	return tsk_array_view_const_length(array_view_type, array_view) == 0;
 }
-const TskAny *tsk_array_view_const_front(TskArrayViewConst array_view) {
-  assert(tsk_array_view_const_is_valid(array_view));
+TskISize tsk_array_view_const_stride(const TskType *array_view_type, TskArrayViewConst array_view) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view));
 
-  if (tsk_array_view_const_is_empty(array_view)) {
-    return TSK_NULL;
-  }
-
-  return tsk_array_view_const_get(array_view, 0);
+	return array_view.stride;
 }
-const TskAny *tsk_array_view_const_back(TskArrayViewConst array_view) {
-  assert(tsk_array_view_const_is_valid(array_view));
+const TskAny *tsk_array_view_const_get(const TskType *array_view_type, TskArrayViewConst array_view, TskUSize index) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view));
+	assert(index < tsk_array_view_const_length(array_view_type, array_view));
 
-  if (tsk_array_view_const_is_empty(array_view)) {
-    return TSK_NULL;
-  }
+	if (tsk_array_view_const_stride(array_view_type, array_view) > 0) {
+		return (const TskU8 *)tsk_array_view_const_elements(array_view_type, array_view) + (index * (TskUSize)tsk_array_view_const_stride(array_view_type, array_view) * tsk_trait_complete_size(tsk_array_view_const_element_type(array_view_type)));
+	}
 
-  return tsk_array_view_const_get(array_view, tsk_array_view_const_length(array_view) - 1);
+	return (const TskU8 *)tsk_array_view_const_elements(array_view_type, array_view) - (index * (TskUSize)-tsk_array_view_const_stride(array_view_type, array_view) * tsk_trait_complete_size(tsk_array_view_const_element_type(array_view_type)));
 }
-TskBoolean tsk_array_view_const_linear_search(TskArrayViewConst array_view, const TskAny *element, TskUSize *index) {
-  assert(tsk_array_view_const_is_valid(array_view));
-  assert(element != TSK_NULL);
-  assert(tsk_type_has_trait(tsk_array_view_const_element_type(array_view), TSK_TRAIT_EQUATABLE));
+const TskAny *tsk_array_view_const_front(const TskType *array_view_type, TskArrayViewConst array_view) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view));
 
-  for (TskUSize i = 0; i < tsk_array_view_const_length(array_view); i++) {
-    if (tsk_trait_equatable_equals(
-            tsk_type_trait(tsk_array_view_const_element_type(array_view), TSK_TRAIT_EQUATABLE),
-            tsk_array_view_const_get(array_view, i),
-            element
-        )) {
-      if (index != TSK_NULL) {
-        *index = i;
-      }
-      return TSK_TRUE;
-    }
-  }
+	if (tsk_array_view_const_is_empty(array_view_type, array_view)) {
+		return TSK_NULL;
+	}
 
-  return TSK_FALSE;
+	return tsk_array_view_const_get(array_view_type, array_view, 0);
 }
-TskBoolean tsk_array_view_const_binary_search(TskArrayViewConst array_view, const TskAny *element, TskUSize *index) {
-  assert(tsk_array_view_const_is_valid(array_view));
-  assert(element != TSK_NULL);
-  assert(tsk_type_has_trait(tsk_array_view_const_element_type(array_view), TSK_TRAIT_COMPARABLE));
+const TskAny *tsk_array_view_const_back(const TskType *array_view_type, TskArrayViewConst array_view) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view));
 
-  TskUSize left  = 0;
-  TskUSize right = tsk_array_view_const_length(array_view) - 1;
-  while (left <= right) {
-    TskUSize    middle   = left + ((right - left) / 2);
-    TskOrdering ordering = tsk_trait_comparable_compare(
-        tsk_type_trait(tsk_array_view_const_element_type(array_view), TSK_TRAIT_COMPARABLE),
-        tsk_array_view_const_get(array_view, middle),
-        element
-    );
-    switch (ordering) {
-      case TSK_ORDERING_LESS: {
-        left = middle + 1;
-      } break;
-      case TSK_ORDERING_EQUAL: {
-        if (index != TSK_NULL) {
-          *index = middle;
-        }
-        return TSK_TRUE;
-      }
-      case TSK_ORDERING_GREATER: {
-        right = middle - 1;
-      } break;
-    }
-  }
+	if (tsk_array_view_const_is_empty(array_view_type, array_view)) {
+		return TSK_NULL;
+	}
 
-  if (index != TSK_NULL) {
-    *index = left;
-  }
-  return TSK_FALSE;
+	return tsk_array_view_const_get(array_view_type, array_view, tsk_array_view_const_length(array_view_type, array_view) - 1);
 }
-TskUSize tsk_array_view_const_lower_bound(TskArrayViewConst array_view, const TskAny *element) {
-  assert(tsk_array_view_const_is_valid(array_view));
-  assert(element != TSK_NULL);
-  assert(tsk_type_has_trait(tsk_array_view_const_element_type(array_view), TSK_TRAIT_COMPARABLE));
+TskBoolean tsk_array_view_const_linear_search(const TskType *array_view_type, TskArrayViewConst array_view, const TskAny *element, TskUSize *index) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view));
+	assert(element != TSK_NULL);
+	assert(tsk_type_has_trait(tsk_array_view_const_element_type(array_view_type), TSK_TRAIT_ID_EQUATABLE));
 
-  TskUSize left  = 0;
-  TskUSize right = tsk_array_view_const_length(array_view);
-  TskUSize index = tsk_array_view_const_length(array_view);
-  while (left < right) {
-    TskUSize    middle   = left + ((right - left) / 2);
-    TskOrdering ordering = tsk_trait_comparable_compare(
-        tsk_type_trait(tsk_array_view_const_element_type(array_view), TSK_TRAIT_COMPARABLE),
-        tsk_array_view_const_get(array_view, middle),
-        element
-    );
-    switch (ordering) {
-      case TSK_ORDERING_LESS: {
-        left = middle + 1;
-      } break;
-      case TSK_ORDERING_EQUAL:
-      case TSK_ORDERING_GREATER: {
-        index = middle;
-        right = middle;
-      } break;
-    }
-  }
+	for (TskUSize i = 0; i < tsk_array_view_const_length(array_view_type, array_view); i++) {
+		if (tsk_trait_equatable_equals(
+		        tsk_array_view_const_element_type(array_view_type),
+		        tsk_array_view_const_get(array_view_type, array_view, i),
+		        element
+		    )) {
+			if (index != TSK_NULL) {
+				*index = i;
+			}
+			return TSK_TRUE;
+		}
+	}
 
-  return index;
+	return TSK_FALSE;
 }
-TskUSize tsk_array_view_const_upper_bound(TskArrayViewConst array_view, const TskAny *element) {
-  assert(tsk_array_view_const_is_valid(array_view));
-  assert(element != TSK_NULL);
-  assert(tsk_type_has_trait(tsk_array_view_const_element_type(array_view), TSK_TRAIT_COMPARABLE));
+TskBoolean tsk_array_view_const_binary_search(const TskType *array_view_type, TskArrayViewConst array_view, const TskAny *element, TskUSize *index) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view));
+	assert(element != TSK_NULL);
+	assert(tsk_type_has_trait(tsk_array_view_const_element_type(array_view_type), TSK_TRAIT_ID_COMPARABLE));
 
-  TskUSize left  = 0;
-  TskUSize right = tsk_array_view_const_length(array_view);
-  TskUSize index = tsk_array_view_const_length(array_view);
-  while (left < right) {
-    TskUSize    middle   = left + ((right - left) / 2);
-    TskOrdering ordering = tsk_trait_comparable_compare(
-        tsk_type_trait(tsk_array_view_const_element_type(array_view), TSK_TRAIT_COMPARABLE),
-        tsk_array_view_const_get(array_view, middle),
-        element
-    );
-    switch (ordering) {
-      case TSK_ORDERING_LESS:
-      case TSK_ORDERING_EQUAL: {
-        left = middle + 1;
-      } break;
-      case TSK_ORDERING_GREATER: {
-        index = middle;
-        right = middle;
-      } break;
-    }
-  }
+	TskUSize left  = 0;
+	TskUSize right = tsk_array_view_const_length(array_view_type, array_view) - 1;
+	while (left <= right) {
+		TskUSize    middle   = left + ((right - left) / 2);
+		TskOrdering ordering = tsk_trait_comparable_compare(
+		    tsk_array_view_const_element_type(array_view_type),
+		    tsk_array_view_const_get(array_view_type, array_view, middle),
+		    element
+		);
+		switch (ordering) {
+			case TSK_ORDERING_LESS: {
+				left = middle + 1;
+			} break;
+			case TSK_ORDERING_EQUAL: {
+				if (index != TSK_NULL) {
+					*index = middle;
+				}
+				return TSK_TRUE;
+			}
+			case TSK_ORDERING_GREATER: {
+				right = middle - 1;
+			} break;
+		}
+	}
 
-  return index;
+	if (index != TSK_NULL) {
+		*index = left;
+	}
+	return TSK_FALSE;
 }
-TskEmpty tsk_array_view_const_equal_range(TskArrayViewConst array_view, const TskAny *element, TskUSize *start, TskUSize *end) {
-  assert(tsk_array_view_const_is_valid(array_view));
-  assert(element != TSK_NULL);
-  assert(tsk_type_has_trait(tsk_array_view_const_element_type(array_view), TSK_TRAIT_COMPARABLE));
-  assert(start != TSK_NULL);
-  assert(end != TSK_NULL);
+TskUSize tsk_array_view_const_lower_bound(const TskType *array_view_type, TskArrayViewConst array_view, const TskAny *element) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view));
+	assert(element != TSK_NULL);
+	assert(tsk_type_has_trait(tsk_array_view_const_element_type(array_view_type), TSK_TRAIT_ID_COMPARABLE));
 
-  *start = tsk_array_view_const_lower_bound(array_view, element);
-  *end   = *start + tsk_array_view_const_upper_bound(
+	TskUSize left  = 0;
+	TskUSize right = tsk_array_view_const_length(array_view_type, array_view) - 1;
+	TskUSize index = tsk_array_view_const_length(array_view_type, array_view);
+	while (left < right) {
+		TskUSize    middle   = left + ((right - left) / 2);
+		TskOrdering ordering = tsk_trait_comparable_compare(
+		    tsk_array_view_const_element_type(array_view_type),
+		    tsk_array_view_const_get(array_view_type, array_view, middle),
+		    element
+		);
+		switch (ordering) {
+			case TSK_ORDERING_LESS: {
+				left = middle + 1;
+			} break;
+			case TSK_ORDERING_EQUAL:
+			case TSK_ORDERING_GREATER: {
+				index = middle;
+				right = middle;
+			} break;
+		}
+	}
+
+	return index;
+}
+TskUSize tsk_array_view_const_upper_bound(const TskType *array_view_type, TskArrayViewConst array_view, const TskAny *element) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view));
+	assert(element != TSK_NULL);
+	assert(tsk_type_has_trait(tsk_array_view_const_element_type(array_view_type), TSK_TRAIT_ID_COMPARABLE));
+
+	TskUSize left  = 0;
+	TskUSize right = tsk_array_view_const_length(array_view_type, array_view) - 1;
+	TskUSize index = tsk_array_view_const_length(array_view_type, array_view);
+	while (left < right) {
+		TskUSize    middle   = left + ((right - left) / 2);
+		TskOrdering ordering = tsk_trait_comparable_compare(
+		    tsk_array_view_const_element_type(array_view_type),
+		    tsk_array_view_const_get(array_view_type, array_view, middle),
+		    element
+		);
+		switch (ordering) {
+			case TSK_ORDERING_LESS:
+			case TSK_ORDERING_EQUAL: {
+				left = middle + 1;
+			} break;
+			case TSK_ORDERING_GREATER: {
+				index = middle;
+				right = middle;
+			} break;
+		}
+	}
+
+	return index;
+}
+TskEmpty tsk_array_view_const_equal_range(const TskType *array_view_type, TskArrayViewConst array_view, const TskAny *element, TskUSize *start, TskUSize *end) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view));
+	assert(element != TSK_NULL);
+	assert(tsk_type_has_trait(tsk_array_view_const_element_type(array_view_type), TSK_TRAIT_ID_COMPARABLE));
+	assert(start != TSK_NULL);
+	assert(end != TSK_NULL);
+
+	*start = tsk_array_view_const_lower_bound(array_view_type, array_view, element);
+	*end   = *start + tsk_array_view_const_upper_bound(
+                      array_view_type,
                       tsk_array_view_const_slice(
+                          array_view_type,
                           array_view,
                           *start,
-                          tsk_array_view_const_length(array_view),
+                          tsk_array_view_const_length(array_view_type, array_view),
                           1
                       ),
                       element
                   );
 }
-TskBoolean tsk_array_view_const_is_sorted(TskArrayViewConst array_view) {
-  return tsk_array_view_const_sorted_until(array_view) == tsk_array_view_const_length(array_view);
+TskBoolean tsk_array_view_const_is_sorted(const TskType *array_view_type, TskArrayViewConst array_view) {
+	return tsk_array_view_const_sorted_until(array_view_type, array_view) == tsk_array_view_const_length(array_view_type, array_view);
 }
-TskUSize tsk_array_view_const_sorted_until(TskArrayViewConst array_view) {
-  assert(tsk_array_view_const_is_valid(array_view));
-  assert(tsk_type_has_trait(tsk_array_view_const_element_type(array_view), TSK_TRAIT_COMPARABLE));
+TskUSize tsk_array_view_const_sorted_until(const TskType *array_view_type, TskArrayViewConst array_view) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view));
+	assert(tsk_type_has_trait(tsk_array_view_const_element_type(array_view_type), TSK_TRAIT_ID_COMPARABLE));
 
-  for (TskUSize i = 1; i < tsk_array_view_const_length(array_view); i++) {
-    TskOrdering ordering = tsk_trait_comparable_compare(
-        tsk_type_trait(tsk_array_view_const_element_type(array_view), TSK_TRAIT_COMPARABLE),
-        tsk_array_view_const_get(array_view, i - 1),
-        tsk_array_view_const_get(array_view, i)
-    );
-    if (ordering > 0) {
-      return i;
-    }
-  }
+	for (TskUSize i = 1; i < tsk_array_view_const_length(array_view_type, array_view); i++) {
+		TskOrdering ordering = tsk_trait_comparable_compare(
+		    tsk_array_view_const_element_type(array_view_type),
+		    tsk_array_view_const_get(array_view_type, array_view, i - 1),
+		    tsk_array_view_const_get(array_view_type, array_view, i)
+		);
+		if (ordering > 0) {
+			return i;
+		}
+	}
 
-  return tsk_array_view_const_length(array_view);
+	return tsk_array_view_const_length(array_view_type, array_view);
 }
-TskBoolean tsk_array_view_const_is_partitioned(TskArrayViewConst array_view, TskBoolean (*predicate)(const TskAny *element)) {
-  TskUSize i = 0;
-  for (; i < tsk_array_view_const_length(array_view); i++) {
-    if (!predicate(tsk_array_view_const_get(array_view, i))) {
-      break;
-    }
-  }
+TskBoolean tsk_array_view_const_is_partitioned(const TskType *array_view_type, TskArrayViewConst array_view, TskBoolean (*predicate)(const TskAny *element)) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view));
 
-  for (i++; i < tsk_array_view_const_length(array_view); i++) {
-    if (predicate(tsk_array_view_const_get(array_view, i))) {
-      return TSK_FALSE;
-    }
-  }
+	TskUSize i = 0;
+	for (; i < tsk_array_view_const_length(array_view_type, array_view); i++) {
+		if (!predicate(tsk_array_view_const_get(array_view_type, array_view, i))) {
+			break;
+		}
+	}
 
-  return TSK_TRUE;
+	for (i++; i < tsk_array_view_const_length(array_view_type, array_view); i++) {
+		if (predicate(tsk_array_view_const_get(array_view_type, array_view, i))) {
+			return TSK_FALSE;
+		}
+	}
+
+	return TSK_TRUE;
 }
-TskUSize tsk_array_view_const_partition_point(TskArrayViewConst array_view, TskBoolean (*predicate)(const TskAny *element)) {
-  assert(tsk_array_view_const_is_valid(array_view));
-  assert(predicate != TSK_NULL);
+TskUSize tsk_array_view_const_partition_point(const TskType *array_view_type, TskArrayViewConst array_view, TskBoolean (*predicate)(const TskAny *element)) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view));
+	assert(predicate != TSK_NULL);
 
-  TskUSize left  = 0;
-  TskUSize right = tsk_array_view_const_length(array_view) - 1;
-  TskUSize index = tsk_array_view_const_length(array_view);
-  while (left <= right) {
-    TskUSize middle = left + ((right - left) / 2);
-    if (predicate(tsk_array_view_const_get(array_view, middle))) {
-      left = middle + 1;
-    } else {
-      index = middle;
-      right = middle - 1;
-    }
-  }
+	TskUSize left  = 0;
+	TskUSize right = tsk_array_view_const_length(array_view_type, array_view) - 1;
+	TskUSize index = tsk_array_view_const_length(array_view_type, array_view);
+	while (left <= right) {
+		TskUSize middle = left + ((right - left) / 2);
+		if (predicate(tsk_array_view_const_get(array_view_type, array_view, middle))) {
+			left = middle + 1;
+		} else {
+			index = middle;
+			right = middle - 1;
+		}
+	}
 
-  return index;
+	return index;
 }
-TskOrdering tsk_array_view_const_compare(TskArrayViewConst array_view_1, TskArrayViewConst array_view_2) {
-  assert(tsk_array_view_const_is_valid(array_view_1));
-  assert(tsk_array_view_const_is_valid(array_view_2));
-  assert(tsk_array_view_const_element_type(array_view_1) == tsk_array_view_const_element_type(array_view_2));
-  assert(tsk_type_has_trait(tsk_array_view_const_element_type(array_view_1), TSK_TRAIT_COMPARABLE));
+TskOrdering tsk_array_view_const_compare(const TskType *array_view_type, TskArrayViewConst array_view_1, TskArrayViewConst array_view_2) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view_1));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view_2));
+	assert(tsk_type_has_trait(tsk_array_view_const_element_type(array_view_type), TSK_TRAIT_ID_COMPARABLE));
 
-  for (TskUSize i = 0; i < tsk_array_view_const_length(array_view_1) && i < tsk_array_view_const_length(array_view_2); i++) {
-    TskOrdering ordering = tsk_trait_comparable_compare(
-        tsk_type_trait(tsk_array_view_const_element_type(array_view_1), TSK_TRAIT_COMPARABLE),
-        tsk_array_view_const_get(array_view_1, i),
-        tsk_array_view_const_get(array_view_2, i)
-    );
-    if (ordering != TSK_ORDERING_EQUAL) {
-      return ordering;
-    }
-  }
+	for (TskUSize i = 0; i < tsk_array_view_const_length(array_view_type, array_view_1) && i < tsk_array_view_const_length(array_view_type, array_view_2); i++) {
+		TskOrdering ordering = tsk_trait_comparable_compare(
+		    tsk_array_view_const_element_type(array_view_type),
+		    tsk_array_view_const_get(array_view_type, array_view_1, i),
+		    tsk_array_view_const_get(array_view_type, array_view_2, i)
+		);
+		if (ordering != TSK_ORDERING_EQUAL) {
+			return ordering;
+		}
+	}
 
-  return (tsk_array_view_const_length(array_view_1) > tsk_array_view_const_length(array_view_2)) -
-         (tsk_array_view_const_length(array_view_1) < tsk_array_view_const_length(array_view_2));
+	return (tsk_array_view_const_length(array_view_type, array_view_1) > tsk_array_view_const_length(array_view_type, array_view_2)) -
+	       (tsk_array_view_const_length(array_view_type, array_view_1) < tsk_array_view_const_length(array_view_type, array_view_2));
 }
-TskBoolean tsk_array_view_const_equals(TskArrayViewConst array_view_1, TskArrayViewConst array_view_2) {
-  assert(tsk_array_view_const_is_valid(array_view_1));
-  assert(tsk_array_view_const_is_valid(array_view_2));
-  assert(tsk_array_view_const_element_type(array_view_1) == tsk_array_view_const_element_type(array_view_2));
-  assert(tsk_type_has_trait(tsk_array_view_const_element_type(array_view_1), TSK_TRAIT_EQUATABLE));
+TskBoolean tsk_array_view_const_equals(const TskType *array_view_type, TskArrayViewConst array_view_1, TskArrayViewConst array_view_2) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view_1));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view_2));
+	assert(tsk_type_has_trait(tsk_array_view_const_element_type(array_view_type), TSK_TRAIT_ID_EQUATABLE));
 
-  if (tsk_array_view_const_length(array_view_1) != tsk_array_view_const_length(array_view_2)) {
-    return TSK_FALSE;
-  }
+	if (tsk_array_view_const_length(array_view_type, array_view_1) != tsk_array_view_const_length(array_view_type, array_view_2)) {
+		return TSK_FALSE;
+	}
 
-  for (TskUSize i = 0; i < tsk_array_view_const_length(array_view_1); i++) {
-    if (!tsk_trait_equatable_equals(
-            tsk_type_trait(tsk_array_view_const_element_type(array_view_1), TSK_TRAIT_EQUATABLE),
-            tsk_array_view_const_get(array_view_1, i),
-            tsk_array_view_const_get(array_view_2, i)
-        )) {
-      return TSK_FALSE;
-    }
-  }
+	for (TskUSize i = 0; i < tsk_array_view_const_length(array_view_type, array_view_1); i++) {
+		if (!tsk_trait_equatable_equals(
+		        tsk_array_view_const_element_type(array_view_type),
+		        tsk_array_view_const_get(array_view_type, array_view_1, i),
+		        tsk_array_view_const_get(array_view_type, array_view_2, i)
+		    )) {
+			return TSK_FALSE;
+		}
+	}
 
-  return TSK_TRUE;
+	return TSK_TRUE;
 }
-TskEmpty tsk_array_view_const_hash(TskArrayViewConst array_view, const TskTraitHasher *trait_hasher, TskAny *hasher) {
-  assert(tsk_array_view_const_is_valid(array_view));
-  assert(tsk_type_has_trait(tsk_array_view_const_element_type(array_view), TSK_TRAIT_HASHABLE));
+TskEmpty tsk_array_view_const_hash(const TskType *array_view_type, TskArrayViewConst array_view, const TskType *hasher_type, TskAny *hasher) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view));
+	assert(tsk_type_has_trait(tsk_array_view_const_element_type(array_view_type), TSK_TRAIT_ID_HASHABLE));
 
-  tsk_usize_hash(tsk_array_view_const_length(array_view), trait_hasher, hasher);
-  for (TskUSize i = 0; i < tsk_array_view_const_length(array_view); i++) {
-    tsk_trait_hashable_hash(
-        tsk_type_trait(tsk_array_view_const_element_type(array_view), TSK_TRAIT_HASHABLE),
-        tsk_array_view_const_get(array_view, i),
-        trait_hasher,
-        hasher
-    );
-  }
+	TskUSize length = tsk_array_view_const_length(array_view_type, array_view);
+	tsk_trait_hasher_combine(
+	    hasher_type,
+	    hasher,
+	    (const TskU8 *)&length,
+	    sizeof(length)
+	);
+
+	for (TskUSize i = 0; i < tsk_array_view_const_length(array_view_type, array_view); i++) {
+		tsk_trait_hashable_hash(
+		    tsk_array_view_const_element_type(array_view_type),
+		    tsk_array_view_const_get(array_view_type, array_view, i),
+		    hasher_type,
+		    hasher
+		);
+	}
 }
 
-static const TskTraitComplete tsk_array_view_const_trait_complete = {
-  .size      = sizeof(TskArrayViewConst),
-  .alignment = alignof(TskArrayViewConst),
+TskOrdering tsk_array_view_const_type_trait_comparable_compare(const TskType *comparable_type, const TskAny *comparable_1, const TskAny *comparable_2) {
+	return tsk_array_view_const_compare(comparable_type, *(const TskArrayViewConst *)comparable_1, *(const TskArrayViewConst *)comparable_2);
+}
+TskBoolean tsk_array_view_const_type_trait_equatable_equals(const TskType *equatable_type, const TskAny *equatable_1, const TskAny *equatable_2) {
+	return tsk_array_view_const_equals(equatable_type, *(const TskArrayViewConst *)equatable_1, *(const TskArrayViewConst *)equatable_2);
+}
+TskEmpty tsk_array_view_const_type_trait_hashable_hash(const TskType *hashable_type, const TskAny *hashable, const TskType *hasher_type, TskAny *hasher) {
+	tsk_array_view_const_hash(hashable_type, *(const TskArrayViewConst *)hashable, hasher_type, hasher);
+}
+
+const TskTraitComplete tsk_array_view_const_type_trait_complete = {
+	.size      = sizeof(TskArrayViewConst),
+	.alignment = alignof(TskArrayViewConst),
+};
+const TskTraitDroppable tsk_array_view_const_type_trait_droppable = {
+	.drop = TSK_NULL,
+};
+const TskTraitClonable tsk_array_view_const_type_trait_clonable = {
+	.clone = TSK_NULL,
+};
+const TskTraitComparable tsk_array_view_const_type_trait_comparable = {
+	.compare = tsk_array_view_const_type_trait_comparable_compare,
+};
+const TskTraitEquatable tsk_array_view_const_type_trait_equatable = {
+	.equals = tsk_array_view_const_type_trait_equatable_equals,
+};
+const TskTraitHashable tsk_array_view_const_type_trait_hashable = {
+	.hash = tsk_array_view_const_type_trait_hashable_hash,
 };
 
-static const TskTraitDroppable tsk_array_view_const_trait_droppable = {
-  .drop = TSK_NULL,
-};
+#define TSK_ARRAY_VIEW_CONST_TYPES_CAPACITY ((TskUSize)1 << 7)
 
-static const TskTraitClonable tsk_array_view_const_trait_clonable = {
-  .trait_complete = &tsk_array_view_const_trait_complete,
-  .clone          = TSK_NULL,
-};
+TskArrayViewConstType tsk_array_view_const_types[TSK_ARRAY_VIEW_CONST_TYPES_CAPACITY];
 
-static TskOrdering tsk_array_view_const_trait_comparable_compare(const TskAny *array_view_1, const TskAny *array_view_2) {
-  return tsk_array_view_const_compare(*(const TskArrayViewConst *)array_view_1, *(const TskArrayViewConst *)array_view_2);
+TskBoolean tsk_array_view_const_type_is_valid(const TskType *array_view_type) {
+	return tsk_type_is_valid(array_view_type) &&
+	       &tsk_array_view_const_types[0] <= (const TskArrayViewConstType *)array_view_type && (const TskArrayViewConstType *)array_view_type < &tsk_array_view_const_types[TSK_ARRAY_VIEW_CONST_TYPES_CAPACITY];
 }
-static const TskTraitComparable tsk_array_view_const_trait_comparable = {
-  .compare = tsk_array_view_const_trait_comparable_compare,
+const TskType *tsk_array_view_const_type(const TskType *element_type) {
+	assert(tsk_type_is_valid(element_type));
+	assert(tsk_type_has_trait(element_type, TSK_TRAIT_ID_COMPLETE));
+
+	const TskType             *hasher_type = tsk_trait_builder_built_type(tsk_default_hasher_builder_type);
+	alignas(max_align_t) TskU8 hasher[tsk_trait_complete_size(hasher_type)];
+	tsk_trait_builder_build(tsk_default_hasher_builder_type, tsk_default_hasher_builder, hasher);
+
+	tsk_trait_hasher_combine(hasher_type, hasher, (const TskU8 *)&element_type, sizeof(element_type)); // NOLINT(bugprone-sizeof-expression)
+	TskU64 hash = tsk_trait_hasher_finalize(hasher_type, hasher);
+
+	tsk_trait_droppable_drop(hasher_type, hasher);
+
+	TskUSize starting_index = hash & (TSK_ARRAY_VIEW_CONST_TYPES_CAPACITY - 1);
+	TskUSize index          = starting_index;
+	while (tsk_array_view_const_types[index].element_type != TSK_NULL) {
+		if (tsk_array_view_const_types[index].element_type == element_type) {
+			return &tsk_array_view_const_types[index].array_view_const_type;
+		}
+		index = (index + 1) & (TSK_ARRAY_VIEW_CONST_TYPES_CAPACITY - 1);
+		if (index == starting_index) {
+			return TSK_NULL;
+		}
+	}
+
+	tsk_array_view_const_types[index].array_view_const_type.trait_table                                                                                                                     = &tsk_array_view_const_types[index].array_view_const_type_trait_table;
+	tsk_array_view_const_types[index].array_view_const_type_trait_table.entries                                                                                                             = tsk_array_view_const_types[index].array_view_const_type_trait_table_entries;
+	tsk_array_view_const_types[index].array_view_const_type_trait_table.capacity                                                                                                            = sizeof(tsk_array_view_const_types[index].array_view_const_type_trait_table_entries) / sizeof(tsk_array_view_const_types[index].array_view_const_type_trait_table_entries[0]);
+
+	tsk_array_view_const_types[index].array_view_const_type_trait_table.entries[TSK_TRAIT_ID_COMPLETE & (tsk_array_view_const_types[index].array_view_const_type_trait_table.capacity - 1)] = (TskTypeTraitTableEntry){
+		.trait_id   = TSK_TRAIT_ID_COMPLETE,
+		.trait_data = &tsk_array_view_const_type_trait_complete,
+	};
+	if (tsk_type_has_trait(element_type, TSK_TRAIT_ID_DROPPABLE)) {
+		tsk_array_view_const_types[index].array_view_const_type_trait_table.entries[TSK_TRAIT_ID_DROPPABLE & (tsk_array_view_const_types[index].array_view_const_type_trait_table.capacity - 1)] = (TskTypeTraitTableEntry){
+			.trait_id   = TSK_TRAIT_ID_DROPPABLE,
+			.trait_data = &tsk_array_view_const_type_trait_droppable,
+		};
+	}
+	if (tsk_type_has_trait(element_type, TSK_TRAIT_ID_CLONABLE)) {
+		tsk_array_view_const_types[index].array_view_const_type_trait_table.entries[TSK_TRAIT_ID_CLONABLE & (tsk_array_view_const_types[index].array_view_const_type_trait_table.capacity - 1)] = (TskTypeTraitTableEntry){
+			.trait_id   = TSK_TRAIT_ID_CLONABLE,
+			.trait_data = &tsk_array_view_const_type_trait_clonable,
+		};
+	}
+	if (tsk_type_has_trait(element_type, TSK_TRAIT_ID_COMPARABLE)) {
+		tsk_array_view_const_types[index].array_view_const_type_trait_table.entries[TSK_TRAIT_ID_COMPARABLE & (tsk_array_view_const_types[index].array_view_const_type_trait_table.capacity - 1)] = (TskTypeTraitTableEntry){
+			.trait_id   = TSK_TRAIT_ID_COMPARABLE,
+			.trait_data = &tsk_array_view_const_type_trait_comparable,
+		};
+	}
+	if (tsk_type_has_trait(element_type, TSK_TRAIT_ID_EQUATABLE)) {
+		tsk_array_view_const_types[index].array_view_const_type_trait_table.entries[TSK_TRAIT_ID_EQUATABLE & (tsk_array_view_const_types[index].array_view_const_type_trait_table.capacity - 1)] = (TskTypeTraitTableEntry){
+			.trait_id   = TSK_TRAIT_ID_EQUATABLE,
+			.trait_data = &tsk_array_view_const_type_trait_equatable,
+		};
+	}
+	if (tsk_type_has_trait(element_type, TSK_TRAIT_ID_HASHABLE)) {
+		tsk_array_view_const_types[index].array_view_const_type_trait_table.entries[TSK_TRAIT_ID_HASHABLE & (tsk_array_view_const_types[index].array_view_const_type_trait_table.capacity - 1)] = (TskTypeTraitTableEntry){
+			.trait_id   = TSK_TRAIT_ID_HASHABLE,
+			.trait_data = &tsk_array_view_const_type_trait_hashable,
+		};
+	}
+
+	tsk_array_view_const_types[index].element_type = element_type;
+
+	(void)snprintf(
+	    tsk_array_view_const_types[index].array_view_const_type_name,
+	    sizeof(tsk_array_view_const_types[index].array_view_const_type_name),
+	    "TskArrayViewConst<%s>",
+	    tsk_type_name(element_type)
+	);
+	tsk_array_view_const_types[index].array_view_const_type.name = tsk_array_view_const_types[index].array_view_const_type_name;
+
+	const TskType *array_view_const_type                         = &tsk_array_view_const_types[index].array_view_const_type;
+
+	assert(tsk_array_view_const_type_is_valid(array_view_const_type));
+
+	return array_view_const_type;
+}
+
+TskArrayViewConst tsk_array_view_const(const TskType *array_type, const TskArray *array) {
+	assert(tsk_array_type_is_valid(array_type));
+	assert(tsk_array_is_valid(array_type, array));
+
+	TskArrayViewConst array_view = {
+		.elements = tsk_array_elements_const(array_type, array),
+		.length   = tsk_array_length(array_type, array),
+		.stride   = 1,
+	};
+
+	assert(tsk_array_view_const_is_valid(tsk_array_view_const_type(tsk_array_element_type(array_type)), array_view));
+
+	return array_view;
+}
+TskArrayViewConst tsk_array_view_as_const(const TskType *array_view_type, TskArrayView array_view) {
+	assert(tsk_array_view_type_is_valid(array_view_type));
+	assert(tsk_array_view_is_valid(array_view_type, array_view));
+
+	TskArrayViewConst array_view_const = {
+		.elements = tsk_array_view_elements(array_view_type, array_view),
+		.length   = tsk_array_view_length(array_view_type, array_view),
+		.stride   = tsk_array_view_stride(array_view_type, array_view),
+	};
+
+	assert(tsk_array_view_const_is_valid(tsk_array_view_const_type(tsk_array_view_element_type(array_view_type)), array_view_const));
+
+	return array_view_const;
+}
+
+typedef struct TskArrayIteratorType TskArrayIteratorType;
+struct TskArrayIteratorType {
+	TskType        array_iterator_type;
+	TskCharacter   array_iterator_type_name[40];
+	const TskType *element_type;
 };
 
-static TskBoolean tsk_array_view_const_type_equatable_equals(const TskAny *array_view_1, const TskAny *array_view_2) {
-  return tsk_array_view_const_equals(*(const TskArrayViewConst *)array_view_1, *(const TskArrayViewConst *)array_view_2);
+TskBoolean tsk_array_iterator_is_valid(const TskType *array_iterator_type, const TskArrayIterator *array_iterator) {
+	assert(tsk_array_iterator_type_is_valid(array_iterator_type));
+
+	return array_iterator != TSK_NULL && (array_iterator->elements != TSK_NULL || array_iterator->length == 0);
 }
-static const TskTraitEquatable tsk_array_view_const_trait_equatable = {
-  .equals = tsk_array_view_const_type_equatable_equals,
+const TskType *tsk_array_iterator_element_type(const TskType *array_iterator_type) {
+	assert(tsk_array_iterator_type_is_valid(array_iterator_type));
+
+	return ((const TskArrayIteratorType *)array_iterator_type)->element_type;
+}
+const TskType *tsk_array_iterator_item_type(const TskType *array_iterator_type) {
+	assert(tsk_array_iterator_type_is_valid(array_iterator_type));
+
+	return tsk_reference_type(tsk_array_iterator_element_type(array_iterator_type));
+}
+TskBoolean tsk_array_iterator_next(const TskType *array_iterator_type, TskArrayIterator *array_iterator, TskAny *item) {
+	assert(tsk_array_iterator_is_valid(array_iterator_type, array_iterator));
+	assert(item != TSK_NULL);
+
+	if (array_iterator->length == 0) {
+		return TSK_FALSE;
+	}
+
+	memcpy(
+	    item,
+	    array_iterator->elements,
+	    tsk_trait_complete_size(tsk_array_iterator_item_type(array_iterator_type))
+	);
+
+	if (array_iterator->stride > 0) {
+		array_iterator->elements = (TskU8 *)array_iterator->elements + ((TskUSize)array_iterator->stride * tsk_trait_complete_size(tsk_array_iterator_element_type(array_iterator_type)));
+	} else {
+		array_iterator->elements = (TskU8 *)array_iterator->elements - ((TskUSize)-array_iterator->stride * tsk_trait_complete_size(tsk_array_iterator_element_type(array_iterator_type)));
+	}
+	array_iterator->length--;
+
+	return TSK_TRUE;
+}
+
+const TskType *tsk_array_iterator_type_trait_iterator_item_type(const TskType *iterator_type) {
+	return tsk_array_iterator_item_type(iterator_type);
+}
+TskBoolean tsk_array_iterator_type_trait_iterator_next(const TskType *iterator_type, TskAny *iterator, TskAny *item) {
+	return tsk_array_iterator_next(iterator_type, iterator, item);
+}
+
+// clang-format off
+TSK_TYPE(tsk_array_iterator_type_, TskArrayIterator,
+	TSK_TYPE_TRAIT(tsk_array_iterator_type_, TSK_TRAIT_ID_COMPLETE, &(TskTraitComplete){
+		.size      = sizeof(TskArrayIterator),
+		.alignment = alignof(TskArrayIterator),
+	}),
+	TSK_TYPE_TRAIT(tsk_array_iterator_type_, TSK_TRAIT_ID_DROPPABLE, &(TskTraitDroppable){
+		.drop = TSK_NULL,
+	}),
+	TSK_TYPE_TRAIT(tsk_array_iterator_type_, TSK_TRAIT_ID_CLONABLE, &(TskTraitClonable){
+		.clone = TSK_NULL,
+	}),
+	TSK_TYPE_TRAIT(tsk_array_iterator_type_, TSK_TRAIT_ID_EQUATABLE, &(TskTraitEquatable){
+		.equals = TSK_NULL,
+	}),
+	TSK_TYPE_TRAIT(tsk_array_iterator_type_, TSK_TRAIT_ID_ITERATOR, &(TskTraitIterator){
+		.item_type = tsk_array_iterator_type_trait_iterator_item_type,
+		.next      = tsk_array_iterator_type_trait_iterator_next,
+	}),
+);
+// clang-format on
+
+#define TSK_ARRAY_ITERATOR_TYPES_CAPACITY ((TskUSize)1 << 7)
+
+TskArrayIteratorType tsk_array_iterator_types[TSK_ARRAY_ITERATOR_TYPES_CAPACITY];
+
+TskBoolean tsk_array_iterator_type_is_valid(const TskType *array_iterator_type) {
+	return tsk_type_is_valid(array_iterator_type) &&
+	       &tsk_array_iterator_types[0] <= (const TskArrayIteratorType *)array_iterator_type && (const TskArrayIteratorType *)array_iterator_type < &tsk_array_iterator_types[TSK_ARRAY_ITERATOR_TYPES_CAPACITY];
+}
+const TskType *tsk_array_iterator_type(const TskType *element_type) {
+	assert(tsk_array_type_is_valid(element_type));
+	assert(tsk_type_has_trait(element_type, TSK_TRAIT_ID_COMPLETE));
+
+	const TskType             *hasher_type = tsk_trait_builder_built_type(tsk_default_hasher_builder_type);
+	alignas(max_align_t) TskU8 hasher[tsk_trait_complete_size(hasher_type)];
+	tsk_trait_builder_build(tsk_default_hasher_builder_type, tsk_default_hasher_builder, hasher);
+
+	tsk_trait_hasher_combine(hasher_type, hasher, (const TskU8 *)&element_type, sizeof(element_type)); // NOLINT(bugprone-sizeof-expression)
+	TskU64 hash = tsk_trait_hasher_finalize(hasher_type, hasher);
+
+	tsk_trait_droppable_drop(hasher_type, hasher);
+
+	TskUSize starting_index = hash & (TSK_ARRAY_ITERATOR_TYPES_CAPACITY - 1);
+	TskUSize index          = starting_index;
+	while (tsk_array_iterator_types[index].element_type != TSK_NULL) {
+		if (tsk_array_iterator_types[index].element_type == element_type) {
+			return &tsk_array_iterator_types[index].array_iterator_type;
+		}
+		index = (index + 1) & (TSK_ARRAY_ITERATOR_TYPES_CAPACITY - 1);
+		if (index == starting_index) {
+			return TSK_NULL;
+		}
+	}
+
+	tsk_array_iterator_types[index].array_iterator_type = *tsk_array_iterator_type_;
+	tsk_array_iterator_types[index].element_type        = element_type;
+
+	(void)snprintf(
+	    tsk_array_iterator_types[index].array_iterator_type_name,
+	    sizeof(tsk_array_iterator_types[index].array_iterator_type_name),
+	    "TskArrayIterator<%s>",
+	    tsk_type_name(element_type)
+	);
+	tsk_array_iterator_types[index].array_iterator_type.name = tsk_array_iterator_types[index].array_iterator_type_name;
+
+	const TskType *array_iterator_type                       = &tsk_array_iterator_types[index].array_iterator_type;
+
+	assert(tsk_array_iterator_type_is_valid(array_iterator_type));
+
+	return array_iterator_type;
+}
+
+TskArrayIterator tsk_array_iterator(const TskType *array_type, TskArray *array) {
+	assert(tsk_array_type_is_valid(array_type));
+	assert(tsk_array_is_valid(array_type, array));
+
+	TskArrayIterator array_iterator = {
+		.elements = tsk_array_elements(array_type, array),
+		.length   = tsk_array_length(array_type, array),
+		.stride   = 1,
+	};
+
+	assert(tsk_array_iterator_is_valid(tsk_array_iterator_type(array_type), &array_iterator));
+
+	return array_iterator;
+}
+TskArrayIterator tsk_array_view_iterator(const TskType *array_view_type, TskArrayView array_view) {
+	assert(tsk_array_view_type_is_valid(array_view_type));
+	assert(tsk_array_view_is_valid(array_view_type, array_view));
+
+	TskArrayIterator array_iterator = {
+		.elements = tsk_array_view_elements(array_view_type, array_view),
+		.length   = tsk_array_view_length(array_view_type, array_view),
+		.stride   = tsk_array_view_stride(array_view_type, array_view)
+	};
+
+	assert(tsk_array_iterator_is_valid(tsk_array_iterator_type(tsk_array_view_element_type(array_view_type)), &array_iterator));
+
+	return array_iterator;
+}
+
+typedef struct TskArrayIteratorConstType TskArrayIteratorConstType;
+struct TskArrayIteratorConstType {
+	TskType        array_iterator_const_type;
+	TskCharacter   array_iterator_const_type_name[40];
+	const TskType *element_type;
 };
 
-static TskEmpty tsk_array_view_const_trait_hashable_hash(const TskAny *array_view, const TskTraitHasher *trait_hasher, TskAny *hasher) {
-  tsk_array_view_const_hash(*(const TskArrayViewConst *)array_view, trait_hasher, hasher);
+TskBoolean tsk_array_iterator_const_is_valid(const TskType *array_iterator_type, const TskArrayIteratorConst *array_iterator) {
+	assert(tsk_array_iterator_const_type_is_valid(array_iterator_type));
+
+	return array_iterator != TSK_NULL && (array_iterator->elements != TSK_NULL || array_iterator->length == 0);
 }
-static const TskTraitHashable tsk_array_view_const_trait_hashable = {
-  .hash = tsk_array_view_const_trait_hashable_hash,
-};
+const TskType *tsk_array_iterator_const_element_type(const TskType *array_iterator_type) {
+	assert(tsk_array_iterator_const_type_is_valid(array_iterator_type));
 
-const TskType tsk_array_view_const_type = {
-  .name   = "TskArrayViewConst",
-  .traits = {
-      [TSK_TRAIT_COMPLETE]   = &tsk_array_view_const_trait_complete,
-      [TSK_TRAIT_DROPPABLE]  = &tsk_array_view_const_trait_droppable,
-      [TSK_TRAIT_CLONABLE]   = &tsk_array_view_const_trait_clonable,
-      [TSK_TRAIT_COMPARABLE] = &tsk_array_view_const_trait_comparable,
-      [TSK_TRAIT_EQUATABLE]  = &tsk_array_view_const_trait_equatable,
-      [TSK_TRAIT_HASHABLE]   = &tsk_array_view_const_trait_hashable,
-  },
-};
-
-TskArrayView tsk_array_to_view(TskArray *array) {
-  assert(tsk_array_is_valid(array));
-
-  TskArrayView array_view = {
-    .element_type = array->element_type,
-    .elements     = array->elements,
-    .length       = array->length,
-    .stride       = 1,
-  };
-
-  assert(tsk_array_view_is_valid(array_view));
-
-  return array_view;
+	return ((const TskArrayIteratorConstType *)array_iterator_type)->element_type;
 }
-TskArrayViewConst tsk_array_to_view_const(const TskArray *array) {
-  assert(tsk_array_is_valid(array));
+const TskType *tsk_array_iterator_const_item_type(const TskType *array_iterator_type) {
+	assert(tsk_array_iterator_const_type_is_valid(array_iterator_type));
 
-  TskArrayViewConst array_view = {
-    .element_type = array->element_type,
-    .elements     = array->elements,
-    .length       = array->length,
-    .stride       = 1,
-  };
+	return tsk_reference_const_type(tsk_array_iterator_const_element_type(array_iterator_type));
+}
+TskBoolean tsk_array_iterator_const_next(const TskType *array_iterator_type, TskArrayIteratorConst *array_iterator, TskAny *item) {
+	assert(tsk_array_iterator_const_is_valid(array_iterator_type, array_iterator));
+	assert(item != TSK_NULL);
 
-  assert(tsk_array_view_const_is_valid(array_view));
+	if (array_iterator->length == 0) {
+		return TSK_FALSE;
+	}
 
-  return array_view;
+	memcpy(
+	    item,
+	    array_iterator->elements,
+	    tsk_trait_complete_size(tsk_array_iterator_const_item_type(array_iterator_type))
+	);
+
+	if (array_iterator->stride > 0) {
+		array_iterator->elements = (const TskU8 *)array_iterator->elements + ((TskUSize)array_iterator->stride * tsk_trait_complete_size(tsk_array_iterator_const_element_type(array_iterator_type)));
+	} else {
+		array_iterator->elements = (const TskU8 *)array_iterator->elements - ((TskUSize)-array_iterator->stride * tsk_trait_complete_size(tsk_array_iterator_const_element_type(array_iterator_type)));
+	}
+	array_iterator->length--;
+
+	return TSK_TRUE;
 }
 
-TskArrayViewConst tsk_array_view_to_const(TskArrayView array_view) {
-  assert(tsk_array_view_is_valid(array_view));
+const TskType *tsk_array_iterator_const_type_trait_iterator_item_type(const TskType *iterator_type) {
+	return tsk_array_iterator_const_item_type(iterator_type);
+}
+TskBoolean tsk_array_iterator_const_type_trait_iterator_next(const TskType *iterator_type, TskAny *iterator, TskAny *item) {
+	return tsk_array_iterator_const_next(iterator_type, iterator, item);
+}
 
-  TskArrayViewConst array_view_const = {
-    .element_type = array_view.element_type,
-    .elements     = array_view.elements,
-    .length       = array_view.length,
-    .stride       = array_view.stride,
-  };
+// clang-format off
+TSK_TYPE(tsk_array_iterator_const_type_, TskArrayIteratorConst,
+	TSK_TYPE_TRAIT(tsk_array_iterator_const_type_, TSK_TRAIT_ID_COMPLETE, &(TskTraitComplete){
+		.size      = sizeof(TskArrayIteratorConst),
+		.alignment = alignof(TskArrayIteratorConst),
+	}),
+	TSK_TYPE_TRAIT(tsk_array_iterator_const_type_, TSK_TRAIT_ID_DROPPABLE, &(TskTraitDroppable){
+		.drop = TSK_NULL,
+	}),
+	TSK_TYPE_TRAIT(tsk_array_iterator_const_type_, TSK_TRAIT_ID_CLONABLE, &(TskTraitClonable){
+		.clone = TSK_NULL,
+	}),
+	TSK_TYPE_TRAIT(tsk_array_iterator_const_type_, TSK_TRAIT_ID_EQUATABLE, &(TskTraitEquatable){
+		.equals = TSK_NULL,
+	}),
+	TSK_TYPE_TRAIT(tsk_array_iterator_const_type_, TSK_TRAIT_ID_ITERATOR, &(TskTraitIterator){
+		.item_type = tsk_array_iterator_const_type_trait_iterator_item_type,
+		.next      = tsk_array_iterator_const_type_trait_iterator_next,
+	}),
+);
+// clang-format on
 
-  assert(tsk_array_view_const_is_valid(array_view_const));
+#define TSK_ARRAY_ITERATOR_CONST_TYPES_CAPACITY ((TskUSize)1 << 7)
 
-  return array_view_const;
-} */
+TskArrayIteratorConstType tsk_array_iterator_const_types[TSK_ARRAY_ITERATOR_CONST_TYPES_CAPACITY];
+
+TskBoolean tsk_array_iterator_const_type_is_valid(const TskType *array_iterator_type) {
+	return tsk_type_is_valid(array_iterator_type) &&
+	       &tsk_array_iterator_const_types[0] <= (const TskArrayIteratorConstType *)array_iterator_type && (const TskArrayIteratorConstType *)array_iterator_type < &tsk_array_iterator_const_types[TSK_ARRAY_ITERATOR_CONST_TYPES_CAPACITY];
+}
+const TskType *tsk_array_iterator_const_type(const TskType *element_type) {
+	assert(tsk_array_type_is_valid(element_type));
+	assert(tsk_type_has_trait(element_type, TSK_TRAIT_ID_COMPLETE));
+
+	const TskType             *hasher_type = tsk_trait_builder_built_type(tsk_default_hasher_builder_type);
+	alignas(max_align_t) TskU8 hasher[tsk_trait_complete_size(hasher_type)];
+	tsk_trait_builder_build(tsk_default_hasher_builder_type, tsk_default_hasher_builder, hasher);
+
+	tsk_trait_hasher_combine(hasher_type, hasher, (const TskU8 *)&element_type, sizeof(element_type)); // NOLINT(bugprone-sizeof-expression)
+	TskU64 hash = tsk_trait_hasher_finalize(hasher_type, hasher);
+
+	tsk_trait_droppable_drop(hasher_type, hasher);
+
+	TskUSize starting_index = hash & (TSK_ARRAY_ITERATOR_CONST_TYPES_CAPACITY - 1);
+	TskUSize index          = starting_index;
+	while (tsk_array_iterator_const_types[index].element_type != TSK_NULL) {
+		if (tsk_array_iterator_const_types[index].element_type == element_type) {
+			return &tsk_array_iterator_const_types[index].array_iterator_const_type;
+		}
+		index = (index + 1) & (TSK_ARRAY_ITERATOR_CONST_TYPES_CAPACITY - 1);
+		if (index == starting_index) {
+			return TSK_NULL;
+		}
+	}
+
+	tsk_array_iterator_const_types[index].array_iterator_const_type = *tsk_array_iterator_const_type_;
+	tsk_array_iterator_const_types[index].element_type              = element_type;
+
+	(void)snprintf(
+	    tsk_array_iterator_const_types[index].array_iterator_const_type_name,
+	    sizeof(tsk_array_iterator_const_types[index].array_iterator_const_type_name),
+	    "TskArrayIteratorConst<%s>",
+	    tsk_type_name(element_type)
+	);
+	tsk_array_iterator_const_types[index].array_iterator_const_type.name = tsk_array_iterator_const_types[index].array_iterator_const_type_name;
+
+	const TskType *array_iterator_const_type                             = &tsk_array_iterator_const_types[index].array_iterator_const_type;
+
+	assert(tsk_array_iterator_const_type_is_valid(array_iterator_const_type));
+
+	return array_iterator_const_type;
+}
+
+TskArrayIteratorConst tsk_array_iterator_const(const TskType *array_type, const TskArray *array) {
+	assert(tsk_array_type_is_valid(array_type));
+	assert(tsk_array_is_valid(array_type, array));
+
+	TskArrayIteratorConst array_iterator = {
+		.elements = tsk_array_elements_const(array_type, array),
+		.length   = tsk_array_length(array_type, array),
+		.stride   = 1,
+	};
+
+	assert(tsk_array_iterator_const_is_valid(tsk_array_iterator_const_type(array_type), &array_iterator));
+
+	return array_iterator;
+}
+TskArrayIteratorConst tsk_array_view_const_iterator(const TskType *array_view_type, TskArrayViewConst array_view) {
+	assert(tsk_array_view_const_type_is_valid(array_view_type));
+	assert(tsk_array_view_const_is_valid(array_view_type, array_view));
+
+	TskArrayIteratorConst array_iterator = {
+		.elements = tsk_array_view_const_elements(array_view_type, array_view),
+		.length   = tsk_array_view_const_length(array_view_type, array_view),
+		.stride   = tsk_array_view_const_stride(array_view_type, array_view)
+	};
+
+	assert(tsk_array_iterator_const_is_valid(tsk_array_iterator_const_type(tsk_array_view_const_element_type(array_view_type)), &array_iterator));
+
+	return array_iterator;
+}

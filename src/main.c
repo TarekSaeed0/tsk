@@ -1,88 +1,70 @@
-#include <ctype.h>
-#include <stdio.h>
-#include <string.h>
-
-#include <tsk/trait/clonable.h>
+#include <tsk/array.h>
 #include <tsk/trait/complete.h>
-#include <tsk/trait/droppable.h>
-#include <tsk/trait/equatable.h>
-#include <tsk/trait/hashable.h>
-#include <tsk/trait/hasher.h>
-#include <tsk/type.h>
+#include <tsk/trait/iterator.h>
 
-#include <tsk/map.h>
+#include <assert.h>
+#include <stdio.h>
 
-TskBoolean string_type_equatable_equals(const TskType *equatable_type, const TskAny *equatable_1, const TskAny *equatable_2) {
-	(TskEmpty) equatable_type;
-
-	return strcmp(*(const TskCharacter **)equatable_1, *(const TskCharacter **)equatable_2) == 0;
+TskBoolean is_even(const TskAny *value) {
+	return (*(TskU32 *)value % 2) == 0;
 }
-TskEmpty string_type_trait_hashable_hash(const TskType *hashable_type, const TskAny *hashable, const TskType *hasher_type, TskAny *hasher) {
-	(TskEmpty) hashable_type;
-
-	TskUSize length = strlen(*(const TskCharacter **)hashable);
-	tsk_trait_hasher_combine(
-	    hasher_type,
-	    hasher,
-	    (const TskU8 *)*(const TskCharacter **)hashable,
-	    length
-	);
-}
-
-// clang-format off
-TSK_TYPE(string_type, const TskCharacter *,
-	TSK_TYPE_TRAIT(string_type, TSK_TRAIT_ID_COMPLETE, &(TskTraitComplete){
-		.size      = sizeof(const TskCharacter *),
-		.alignment = alignof(const TskCharacter *),
-	}),
-	TSK_TYPE_TRAIT(string_type, TSK_TRAIT_ID_DROPPABLE, &(TskTraitDroppable){
-		.drop = TSK_NULL,
-	}),
-	TSK_TYPE_TRAIT(string_type, TSK_TRAIT_ID_CLONABLE, &(TskTraitClonable){
-		.clone = TSK_NULL,
-	}),
-	TSK_TYPE_TRAIT(string_type, TSK_TRAIT_ID_EQUATABLE, &(TskTraitEquatable){
-		.equals = string_type_equatable_equals,
-	}),
-	TSK_TYPE_TRAIT(string_type, TSK_TRAIT_ID_HASHABLE, &(TskTraitHashable){
-		.hash = string_type_trait_hashable_hash,
-	}),
-);
-// clang-format on
 
 int main(void) {
-	const TskType *map_type        = tsk_map_type(string_type, tsk_u32_type);
-	TskMap         map             = tsk_map_new(map_type);
+	TskArray array = tsk_array_new(tsk_array_type(tsk_u32_type));
 
-	TskCharacter text[]            = "\
-The quick brown fox jumps over the lazy dog.\n\
-The dog barked, and the fox ran away.\n\
-Dogs and foxes are not always enemies; sometimes they share the same forest.\n\
-Quick thinking helps a fox escape danger, but lazy habits may cost a dog its meal.\n\
-";
+	TskUSize size  = 0;
+	scanf("%zu", &size); // NOLINT
 
-	const TskCharacter *delimiters = " \n\t.,;:!?\"'()[]{}<>";
-	TskCharacter       *token      = strtok(text, delimiters);
-	while (token != TSK_NULL) {
-		for (TskCharacter *character = token; *character; character++) {
-			*character = (TskCharacter)tolower(*character);
-		}
-
-		TskU32 *value = tsk_map_get_or_insert(map_type, &map, &(const TskCharacter *){ token }, &(TskU32){ 0 });
-		(*value)++;
-
-		token = strtok(TSK_NULL, delimiters);
+	for (TskUSize i = 0; i < size; i++) {
+		TskU32 value = 0;
+		scanf("%u", &value); // NOLINT
+		tsk_array_push_back(tsk_array_type(tsk_u32_type), &array, &value);
 	}
 
-	const TskType *map_iterator_type = tsk_map_iterator_type(map_type);
-	TskMapIterator map_iterator      = tsk_map_iterator(map_type, &map);
+	tsk_array_view_partition(
+	    tsk_array_view_type(tsk_u32_type),
+	    tsk_array_view(tsk_array_type(tsk_u32_type), &array),
+	    is_even
+	);
 
-	for (
-	    struct { const TskCharacter **key; TskU32 *value; } item;
-	    tsk_map_iterator_next(map_iterator_type, &map_iterator, &item);
-	) {
-		printf("\"%s\": %u\n", *item.key, *item.value);
+	TskUSize parition_point =
+	    tsk_array_view_const_partition_point(
+	        tsk_array_view_const_type(tsk_u32_type),
+	        tsk_array_view_const(tsk_array_type(tsk_u32_type), &array),
+	        is_even
+	    );
+
+	TskArrayView evens = tsk_array_view_slice(
+	    tsk_array_view_type(tsk_u32_type),
+	    tsk_array_view(tsk_array_type(tsk_u32_type), &array),
+	    0,
+	    parition_point,
+	    1
+	);
+	tsk_array_view_sort(tsk_array_view_type(tsk_u32_type), evens);
+
+	TskArrayView odds = tsk_array_view_slice(
+	    tsk_array_view_type(tsk_u32_type),
+	    tsk_array_view(tsk_array_type(tsk_u32_type), &array),
+	    parition_point,
+	    tsk_array_length(tsk_array_type(tsk_u32_type), &array),
+	    1
+	);
+	tsk_array_view_sort(tsk_array_view_type(tsk_u32_type), odds);
+
+	printf("Evens: ");
+	for (TskUSize i = 0; i < tsk_array_view_length(tsk_array_view_type(tsk_u32_type), evens); i++) {
+		const TskU32 *value = tsk_array_view_get(tsk_array_view_type(tsk_u32_type), evens, i);
+		printf("%u ", *value);
 	}
+	printf("\n");
 
-	tsk_map_drop(map_type, &map);
+	printf("Odds: ");
+	for (TskUSize i = 0; i < tsk_array_view_length(tsk_array_view_type(tsk_u32_type), odds); i++) {
+		const TskU32 *value = tsk_array_view_get(tsk_array_view_type(tsk_u32_type), odds, i);
+		printf("%u ", *value);
+	}
+	printf("\n");
+
+	tsk_array_drop(tsk_array_type(tsk_u32_type), &array);
 }

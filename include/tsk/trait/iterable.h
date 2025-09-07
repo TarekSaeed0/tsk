@@ -11,10 +11,19 @@ extern "C" {
 typedef struct TskTraitIterable TskTraitIterable;
 struct TskTraitIterable {
 	const TskType *(*iterator_type)(const TskType *iterable_type);
-	TskEmpty (*iterator)(const TskType *iterable_type, const TskAny *iterable, TskAny *iterator);
+	TskEmpty (*iterator)(const TskType *iterable_type, TskAny *iterable, TskAny *iterator);
 };
 const TskType *tsk_trait_iterable_iterator_type(const TskType *iterable_type);
-TskBoolean     tsk_trait_iterable_iterator(const TskType *iterable_type, const TskAny *iterable, TskAny *iterator);
+TskEmpty       tsk_trait_iterable_iterator(const TskType *iterable_type, TskAny *iterable, TskAny *iterator);
+
+#define TSK_TRAIT_ID_ITERABLE_CONST ((TskTraitID)10)
+typedef struct TskTraitIterableConst TskTraitIterableConst;
+struct TskTraitIterableConst {
+	const TskType *(*iterator_type)(const TskType *iterable_type);
+	TskEmpty (*iterator)(const TskType *iterable_type, const TskAny *iterable, TskAny *iterator);
+};
+const TskType *tsk_trait_iterable_const_iterator_type(const TskType *iterable_type);
+TskEmpty       tsk_trait_iterable_const_iterator(const TskType *iterable_type, const TskAny *iterable, TskAny *iterator);
 
 #ifdef __cplusplus
 }

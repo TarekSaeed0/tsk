@@ -10,6 +10,8 @@
 #include <tsk/trait/equatable.h>
 #include <tsk/trait/hashable.h>
 #include <tsk/trait/hasher.h>
+#include <tsk/trait/iterable.h>
+#include <tsk/trait/iterator.h>
 
 #include <assert.h>
 #include <stdalign.h>
@@ -427,6 +429,18 @@ TskBoolean tsk_list_type_trait_equatable_equals(const TskType *equatable_type, c
 TskEmpty tsk_list_type_trait_hashable_hash(const TskType *hashable_type, const TskAny *hashable, const TskType *hasher_type, TskAny *hasher) {
 	tsk_list_hash(hashable_type, hashable, hasher_type, hasher);
 }
+const TskType *tsk_list_type_trait_iterable_iterator_type(const TskType *iterable_type) {
+	return tsk_list_iterator_type(tsk_list_element_type(iterable_type));
+}
+TskEmpty tsk_list_type_trait_iterable_iterator(const TskType *iterable_type, TskAny *iterable, TskAny *iterator) {
+	*(TskListIterator *)iterator = tsk_list_iterator(iterable_type, iterable);
+}
+const TskType *tsk_list_type_trait_iterable_const_iterator_type(const TskType *iterable_type) {
+	return tsk_list_iterator_const_type(tsk_list_element_type(iterable_type));
+}
+TskEmpty tsk_list_type_trait_iterable_const_iterator(const TskType *iterable_type, const TskAny *iterable, TskAny *iterator) {
+	*(TskListIteratorConst *)iterator = tsk_list_iterator_const(iterable_type, iterable);
+}
 
 const TskTraitComplete tsk_list_type_trait_complete = {
 	.size      = sizeof(TskList),
@@ -446,6 +460,14 @@ const TskTraitEquatable tsk_list_type_trait_equatable = {
 };
 const TskTraitHashable tsk_list_type_trait_hashable = {
 	.hash = tsk_list_type_trait_hashable_hash,
+};
+const TskTraitIterable tsk_list_type_trait_iterable = {
+	.iterator_type = tsk_list_type_trait_iterable_iterator_type,
+	.iterator      = tsk_list_type_trait_iterable_iterator,
+};
+const TskTraitIterableConst tsk_list_type_trait_iterable_const = {
+	.iterator_type = tsk_list_type_trait_iterable_const_iterator_type,
+	.iterator      = tsk_list_type_trait_iterable_const_iterator,
 };
 
 #define TSK_LIST_TYPES_CAPACITY ((TskUSize)1 << 7)
@@ -519,6 +541,14 @@ const TskType *tsk_list_type(const TskType *element_type) {
 			.trait_data = &tsk_list_type_trait_hashable,
 		};
 	}
+	tsk_list_types[index].list_type_trait_table.entries[TSK_TRAIT_ID_ITERABLE & (tsk_list_types[index].list_type_trait_table.capacity - 1)] = (TskTypeTraitTableEntry){
+		.trait_id   = TSK_TRAIT_ID_ITERABLE,
+		.trait_data = &tsk_list_type_trait_iterable,
+	};
+	tsk_list_types[index].list_type_trait_table.entries[TSK_TRAIT_ID_ITERABLE_CONST & (tsk_list_types[index].list_type_trait_table.capacity - 1)] = (TskTypeTraitTableEntry){
+		.trait_id   = TSK_TRAIT_ID_ITERABLE_CONST,
+		.trait_data = &tsk_list_type_trait_iterable_const,
+	};
 
 	tsk_list_types[index].element_type = element_type;
 
@@ -541,41 +571,48 @@ typedef struct TskListIteratorType TskListIteratorType;
 struct TskListIteratorType {
 	TskType        list_iterator_type;
 	TskCharacter   list_iterator_type_name[40];
-	const TskType *list_type;
+	const TskType *element_type;
 };
 
-TskBoolean tsk_list_iterator_is_valid(const TskType *iterator_type, const TskListIterator *iterator) {
-	assert(tsk_list_iterator_type_is_valid(iterator_type));
+TskBoolean tsk_list_iterator_is_valid(const TskType *list_iterator_type, const TskListIterator *list_iterator) {
+	assert(tsk_list_iterator_type_is_valid(list_iterator_type));
 
-	return iterator != TSK_NULL && tsk_list_is_valid(tsk_list_iterator_list_type(iterator_type), iterator->list);
+	return list_iterator != TSK_NULL && tsk_list_is_valid(tsk_list_type(tsk_list_iterator_element_type(list_iterator_type)), list_iterator->list);
 }
-const TskType *tsk_list_iterator_list_type(const TskType *iterator_type) {
-	assert(tsk_list_iterator_type_is_valid(iterator_type));
+const TskType *tsk_list_iterator_element_type(const TskType *list_iterator_type) {
+	assert(tsk_list_iterator_type_is_valid(list_iterator_type));
 
-	return ((const TskListIteratorType *)iterator_type)->list_type;
+	return ((const TskListIteratorType *)list_iterator_type)->element_type;
 }
-const TskType *tsk_list_iterator_item_type(const TskType *iterator_type) {
-	assert(tsk_list_iterator_type_is_valid(iterator_type));
+const TskType *tsk_list_iterator_item_type(const TskType *list_iterator_type) {
+	assert(tsk_list_iterator_type_is_valid(list_iterator_type));
 
-	return tsk_reference_type(tsk_list_element_type(tsk_list_iterator_list_type(iterator_type)));
+	return tsk_reference_type(tsk_list_iterator_element_type(list_iterator_type));
 }
-TskBoolean tsk_list_iterator_next(const TskType *iterator_type, TskListIterator *iterator, TskAny *item) {
-	assert(tsk_list_iterator_is_valid(iterator_type, iterator));
+TskBoolean tsk_list_iterator_next(const TskType *list_iterator_type, TskListIterator *list_iterator, TskAny *item) {
+	assert(tsk_list_iterator_is_valid(list_iterator_type, list_iterator));
 	assert(item != TSK_NULL);
 
-	if (iterator->current == TSK_NULL) {
+	if (list_iterator->current == TSK_NULL) {
 		return TSK_FALSE;
 	}
 
 	memcpy(
 	    item,
-	    &iterator->current->element,
-	    tsk_trait_complete_size(tsk_list_iterator_item_type(iterator_type))
+	    &list_iterator->current->element,
+	    tsk_trait_complete_size(tsk_list_iterator_item_type(list_iterator_type))
 	);
 
-	iterator->current = iterator->current->next;
+	list_iterator->current = list_iterator->current->next;
 
 	return TSK_TRUE;
+}
+
+const TskType *tsk_list_iterator_type_trait_iterator_item_type(const TskType *iterator_type) {
+	return tsk_list_iterator_item_type(iterator_type);
+}
+TskBoolean tsk_list_iterator_type_trait_iterator_next(const TskType *iterator_type, TskAny *iterator, TskAny *item) {
+	return tsk_list_iterator_next(iterator_type, iterator, item);
 }
 
 // clang-format off
@@ -593,6 +630,10 @@ TSK_TYPE(tsk_list_iterator_type_, TskListIterator,
 	TSK_TYPE_TRAIT(tsk_list_iterator_type_, TSK_TRAIT_ID_EQUATABLE, &(TskTraitEquatable){
 		.equals = TSK_NULL,
 	}),
+	TSK_TYPE_TRAIT(tsk_list_iterator_type_, TSK_TRAIT_ID_ITERATOR, &(TskTraitIterator){
+		.item_type = tsk_list_iterator_type_trait_iterator_item_type,
+		.next      = tsk_list_iterator_type_trait_iterator_next,
+	}),
 );
 // clang-format on
 
@@ -604,22 +645,23 @@ TskBoolean tsk_list_iterator_type_is_valid(const TskType *list_iterator_type) {
 	return tsk_type_is_valid(list_iterator_type) &&
 	       &tsk_list_iterator_types[0] <= (const TskListIteratorType *)list_iterator_type && (const TskListIteratorType *)list_iterator_type < &tsk_list_iterator_types[TSK_LIST_ITERATOR_TYPES_CAPACITY];
 }
-const TskType *tsk_list_iterator_type(const TskType *list_type) {
-	assert(tsk_list_type_is_valid(list_type));
+const TskType *tsk_list_iterator_type(const TskType *element_type) {
+	assert(tsk_list_type_is_valid(element_type));
+	assert(tsk_type_has_trait(element_type, TSK_TRAIT_ID_COMPLETE));
 
 	const TskType             *hasher_type = tsk_trait_builder_built_type(tsk_default_hasher_builder_type);
 	alignas(max_align_t) TskU8 hasher[tsk_trait_complete_size(hasher_type)];
 	tsk_trait_builder_build(tsk_default_hasher_builder_type, tsk_default_hasher_builder, hasher);
 
-	tsk_trait_hasher_combine(hasher_type, hasher, (const TskU8 *)&list_type, sizeof(list_type)); // NOLINT(bugprone-sizeof-expression)
+	tsk_trait_hasher_combine(hasher_type, hasher, (const TskU8 *)&element_type, sizeof(element_type)); // NOLINT(bugprone-sizeof-expression)
 	TskU64 hash = tsk_trait_hasher_finalize(hasher_type, hasher);
 
 	tsk_trait_droppable_drop(hasher_type, hasher);
 
 	TskUSize starting_index = hash & (TSK_LIST_ITERATOR_TYPES_CAPACITY - 1);
 	TskUSize index          = starting_index;
-	while (tsk_list_iterator_types[index].list_type != TSK_NULL) {
-		if (tsk_list_iterator_types[index].list_type == list_type) {
+	while (tsk_list_iterator_types[index].element_type != TSK_NULL) {
+		if (tsk_list_iterator_types[index].element_type == element_type) {
 			return &tsk_list_iterator_types[index].list_iterator_type;
 		}
 		index = (index + 1) & (TSK_LIST_ITERATOR_TYPES_CAPACITY - 1);
@@ -629,13 +671,13 @@ const TskType *tsk_list_iterator_type(const TskType *list_type) {
 	}
 
 	tsk_list_iterator_types[index].list_iterator_type = *tsk_list_iterator_type_;
-	tsk_list_iterator_types[index].list_type          = list_type;
+	tsk_list_iterator_types[index].element_type       = element_type;
 
 	(void)snprintf(
 	    tsk_list_iterator_types[index].list_iterator_type_name,
 	    sizeof(tsk_list_iterator_types[index].list_iterator_type_name),
 	    "TskListIterator<%s>",
-	    tsk_type_name(list_type)
+	    tsk_type_name(element_type)
 	);
 	tsk_list_iterator_types[index].list_iterator_type.name = tsk_list_iterator_types[index].list_iterator_type_name;
 
@@ -656,6 +698,141 @@ TskListIterator tsk_list_iterator(const TskType *list_type, TskList *list) {
 	};
 
 	assert(tsk_list_iterator_is_valid(tsk_list_iterator_type(list_type), &list_iterator));
+
+	return list_iterator;
+}
+
+typedef struct TskListIteratorConstType TskListIteratorConstType;
+struct TskListIteratorConstType {
+	TskType        list_iterator_const_type;
+	TskCharacter   list_iterator_const_type_name[40];
+	const TskType *element_type;
+};
+
+TskBoolean tsk_list_iterator_const_is_valid(const TskType *list_iterator_type, const TskListIteratorConst *list_iterator) {
+	assert(tsk_list_iterator_const_type_is_valid(list_iterator_type));
+
+	return list_iterator != TSK_NULL && tsk_list_is_valid(tsk_list_type(tsk_list_iterator_const_element_type(list_iterator_type)), list_iterator->list);
+}
+const TskType *tsk_list_iterator_const_element_type(const TskType *list_iterator_type) {
+	assert(tsk_list_iterator_const_type_is_valid(list_iterator_type));
+
+	return ((const TskListIteratorConstType *)list_iterator_type)->element_type;
+}
+const TskType *tsk_list_iterator_const_item_type(const TskType *list_iterator_type) {
+	assert(tsk_list_iterator_const_type_is_valid(list_iterator_type));
+
+	return tsk_reference_const_type(tsk_list_iterator_const_element_type(list_iterator_type));
+}
+TskBoolean tsk_list_iterator_const_next(const TskType *list_iterator_type, TskListIteratorConst *list_iterator, TskAny *item) {
+	assert(tsk_list_iterator_const_is_valid(list_iterator_type, list_iterator));
+	assert(item != TSK_NULL);
+
+	if (list_iterator->current == TSK_NULL) {
+		return TSK_FALSE;
+	}
+
+	memcpy(
+	    item,
+	    &list_iterator->current->element,
+	    tsk_trait_complete_size(tsk_list_iterator_const_item_type(list_iterator_type))
+	);
+
+	list_iterator->current = list_iterator->current->next;
+
+	return TSK_TRUE;
+}
+
+const TskType *tsk_list_iterator_const_type_trait_iterator_item_type(const TskType *iterator_type) {
+	return tsk_list_iterator_const_item_type(iterator_type);
+}
+TskBoolean tsk_list_iterator_const_type_trait_iterator_next(const TskType *iterator_type, TskAny *iterator, TskAny *item) {
+	return tsk_list_iterator_const_next(iterator_type, iterator, item);
+}
+
+// clang-format off
+TSK_TYPE(tsk_list_iterator_const_type_, TskListIteratorConst,
+	TSK_TYPE_TRAIT(tsk_list_iterator_const_type_, TSK_TRAIT_ID_COMPLETE, &(TskTraitComplete){
+		.size      = sizeof(TskListIteratorConst),
+		.alignment = alignof(TskListIteratorConst),
+	}),
+	TSK_TYPE_TRAIT(tsk_list_iterator_const_type_, TSK_TRAIT_ID_DROPPABLE, &(TskTraitDroppable){
+		.drop = TSK_NULL,
+	}),
+	TSK_TYPE_TRAIT(tsk_list_iterator_const_type_, TSK_TRAIT_ID_CLONABLE, &(TskTraitClonable){
+		.clone = TSK_NULL,
+	}),
+	TSK_TYPE_TRAIT(tsk_list_iterator_const_type_, TSK_TRAIT_ID_EQUATABLE, &(TskTraitEquatable){
+		.equals = TSK_NULL,
+	}),
+	TSK_TYPE_TRAIT(tsk_list_iterator_const_type_, TSK_TRAIT_ID_ITERATOR, &(TskTraitIterator){
+		.item_type = tsk_list_iterator_const_type_trait_iterator_item_type,
+		.next      = tsk_list_iterator_const_type_trait_iterator_next,
+	}),
+);
+// clang-format on
+
+#define TSK_LIST_ITERATOR_CONST_TYPES_CAPACITY ((TskUSize)1 << 7)
+
+TskListIteratorConstType tsk_list_iterator_const_types[TSK_LIST_ITERATOR_CONST_TYPES_CAPACITY];
+
+TskBoolean tsk_list_iterator_const_type_is_valid(const TskType *list_iterator_type) {
+	return tsk_type_is_valid(list_iterator_type) &&
+	       &tsk_list_iterator_const_types[0] <= (const TskListIteratorConstType *)list_iterator_type && (const TskListIteratorConstType *)list_iterator_type < &tsk_list_iterator_const_types[TSK_LIST_ITERATOR_CONST_TYPES_CAPACITY];
+}
+const TskType *tsk_list_iterator_const_type(const TskType *element_type) {
+	assert(tsk_list_type_is_valid(element_type));
+	assert(tsk_type_has_trait(element_type, TSK_TRAIT_ID_COMPLETE));
+
+	const TskType             *hasher_type = tsk_trait_builder_built_type(tsk_default_hasher_builder_type);
+	alignas(max_align_t) TskU8 hasher[tsk_trait_complete_size(hasher_type)];
+	tsk_trait_builder_build(tsk_default_hasher_builder_type, tsk_default_hasher_builder, hasher);
+
+	tsk_trait_hasher_combine(hasher_type, hasher, (const TskU8 *)&element_type, sizeof(element_type)); // NOLINT(bugprone-sizeof-expression)
+	TskU64 hash = tsk_trait_hasher_finalize(hasher_type, hasher);
+
+	tsk_trait_droppable_drop(hasher_type, hasher);
+
+	TskUSize starting_index = hash & (TSK_LIST_ITERATOR_CONST_TYPES_CAPACITY - 1);
+	TskUSize index          = starting_index;
+	while (tsk_list_iterator_const_types[index].element_type != TSK_NULL) {
+		if (tsk_list_iterator_const_types[index].element_type == element_type) {
+			return &tsk_list_iterator_const_types[index].list_iterator_const_type;
+		}
+		index = (index + 1) & (TSK_LIST_ITERATOR_CONST_TYPES_CAPACITY - 1);
+		if (index == starting_index) {
+			return TSK_NULL;
+		}
+	}
+
+	tsk_list_iterator_const_types[index].list_iterator_const_type = *tsk_list_iterator_const_type_;
+	tsk_list_iterator_const_types[index].element_type             = element_type;
+
+	(void)snprintf(
+	    tsk_list_iterator_const_types[index].list_iterator_const_type_name,
+	    sizeof(tsk_list_iterator_const_types[index].list_iterator_const_type_name),
+	    "TskListIteratorConst<%s>",
+	    tsk_type_name(element_type)
+	);
+	tsk_list_iterator_const_types[index].list_iterator_const_type.name = tsk_list_iterator_const_types[index].list_iterator_const_type_name;
+
+	const TskType *list_iterator_const_type                            = &tsk_list_iterator_const_types[index].list_iterator_const_type;
+
+	assert(tsk_list_iterator_const_type_is_valid(list_iterator_const_type));
+
+	return list_iterator_const_type;
+}
+
+TskListIteratorConst tsk_list_iterator_const(const TskType *list_type, const TskList *list) {
+	assert(tsk_list_type_is_valid(list_type));
+	assert(tsk_list_is_valid(list_type, list));
+
+	TskListIteratorConst list_iterator = {
+		.list    = list,
+		.current = list->head,
+	};
+
+	assert(tsk_list_iterator_const_is_valid(tsk_list_iterator_const_type(list_type), &list_iterator));
 
 	return list_iterator;
 }

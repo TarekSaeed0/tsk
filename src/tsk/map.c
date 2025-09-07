@@ -10,6 +10,8 @@
 #include <tsk/trait/equatable.h>
 #include <tsk/trait/hashable.h>
 #include <tsk/trait/hasher.h>
+#include <tsk/trait/iterable.h>
+#include <tsk/trait/iterator.h>
 
 #include <assert.h>
 #include <stdio.h>
@@ -684,6 +686,18 @@ TskBoolean tsk_map_type_trait_clonable_clone(const TskType *clonable_type, const
 TskBoolean tsk_map_type_trait_equatable_equals(const TskType *equatable_type, const TskAny *equatable_1, const TskAny *equatable_2) {
 	return tsk_map_equals(equatable_type, equatable_1, equatable_2);
 }
+const TskType *tsk_map_type_trait_iterable_iterator_type(const TskType *iterable_type) {
+	return tsk_map_iterator_type(tsk_map_key_type(iterable_type), tsk_map_value_type(iterable_type));
+}
+TskEmpty tsk_map_type_trait_iterable_iterator(const TskType *iterable_type, TskAny *iterable, TskAny *iterator) {
+	*(TskMapIterator *)iterator = tsk_map_iterator(iterable_type, iterable);
+}
+const TskType *tsk_map_type_trait_iterable_const_iterator_type(const TskType *iterable_type) {
+	return tsk_map_iterator_const_type(tsk_map_key_type(iterable_type), tsk_map_value_type(iterable_type));
+}
+TskEmpty tsk_map_type_trait_iterable_const_iterator(const TskType *iterable_type, const TskAny *iterable, TskAny *iterator) {
+	*(TskMapIteratorConst *)iterator = tsk_map_iterator_const(iterable_type, iterable);
+}
 
 const TskTraitComplete tsk_map_type_trait_complete = {
 	.size      = sizeof(TskMap),
@@ -697,6 +711,14 @@ const TskTraitClonable tsk_map_type_trait_clonable = {
 };
 const TskTraitEquatable tsk_map_type_trait_equatable = {
 	.equals = tsk_map_type_trait_equatable_equals,
+};
+const TskTraitIterable tsk_map_type_trait_iterable = {
+	.iterator_type = tsk_map_type_trait_iterable_iterator_type,
+	.iterator      = tsk_map_type_trait_iterable_iterator,
+};
+const TskTraitIterableConst tsk_map_type_trait_iterable_const = {
+	.iterator_type = tsk_map_type_trait_iterable_const_iterator_type,
+	.iterator      = tsk_map_type_trait_iterable_const_iterator,
 };
 
 #define TSK_MAP_TYPES_CAPACITY ((TskUSize)1 << 7)
@@ -763,6 +785,14 @@ const TskType *tsk_map_type(const TskType *key_type, const TskType *value_type) 
 			.trait_data = &tsk_map_type_trait_equatable,
 		};
 	}
+	tsk_map_types[index].map_type_trait_table.entries[TSK_TRAIT_ID_ITERABLE & (tsk_map_types[index].map_type_trait_table.capacity - 1)] = (TskTypeTraitTableEntry){
+		.trait_id   = TSK_TRAIT_ID_ITERABLE,
+		.trait_data = &tsk_map_type_trait_iterable,
+	};
+	tsk_map_types[index].map_type_trait_table.entries[TSK_TRAIT_ID_ITERABLE_CONST & (tsk_map_types[index].map_type_trait_table.capacity - 1)] = (TskTypeTraitTableEntry){
+		.trait_id   = TSK_TRAIT_ID_ITERABLE_CONST,
+		.trait_data = &tsk_map_type_trait_iterable_const,
+	};
 
 	tsk_map_types[index].key_type   = key_type;
 	tsk_map_types[index].value_type = value_type;
@@ -787,43 +817,47 @@ typedef struct TskMapIteratorType TskMapIteratorType;
 struct TskMapIteratorType {
 	TskType        map_iterator_type;
 	TskCharacter   map_iterator_type_name[40];
-	const TskType *map_type;
+	const TskType *key_type;
+	const TskType *value_type;
 };
 
-TskBoolean tsk_map_iterator_is_valid(const TskType *iterator_type, const TskMapIterator *iterator) {
-	assert(tsk_map_iterator_type_is_valid(iterator_type));
+TskBoolean tsk_map_iterator_is_valid(const TskType *map_iterator_type, const TskMapIterator *map_iterator) {
+	assert(tsk_map_iterator_type_is_valid(map_iterator_type));
 
-	return iterator != TSK_NULL && tsk_map_is_valid(tsk_map_iterator_map_type(iterator_type), iterator->map);
+	return map_iterator != TSK_NULL && tsk_map_is_valid(tsk_map_type(tsk_map_iterator_key_type(map_iterator_type), tsk_map_iterator_value_type(map_iterator_type)), map_iterator->map);
 }
-const TskType *tsk_map_iterator_map_type(const TskType *iterator_type) {
-	assert(tsk_map_iterator_type_is_valid(iterator_type));
+const TskType *tsk_map_iterator_key_type(const TskType *map_iterator_type) {
+	assert(tsk_map_iterator_type_is_valid(map_iterator_type));
 
-	return ((const TskMapIteratorType *)iterator_type)->map_type;
+	return ((const TskMapIteratorType *)map_iterator_type)->key_type;
 }
-const TskType *tsk_map_iterator_item_type(const TskType *iterator_type) {
-	assert(tsk_map_iterator_type_is_valid(iterator_type));
+const TskType *tsk_map_iterator_value_type(const TskType *map_iterator_type) {
+	assert(tsk_map_iterator_type_is_valid(map_iterator_type));
 
-	const TskType *map_type = tsk_map_iterator_map_type(iterator_type);
+	return ((const TskMapIteratorType *)map_iterator_type)->value_type;
+}
+const TskType *tsk_map_iterator_item_type(const TskType *map_iterator_type) {
+	assert(tsk_map_iterator_type_is_valid(map_iterator_type));
 
 	return tsk_tuple_type(
 	    (const TskType *[]){
-	        tsk_reference_const_type(tsk_map_key_type(map_type)),
-	        tsk_reference_type(tsk_map_value_type(map_type)),
+	        tsk_reference_const_type(tsk_map_iterator_key_type(map_iterator_type)),
+	        tsk_reference_type(tsk_map_iterator_value_type(map_iterator_type)),
 	    },
 	    2
 	);
 }
-TskBoolean tsk_map_iterator_next(const TskType *iterator_type, TskMapIterator *iterator, TskTuple *item) {
-	assert(tsk_map_iterator_type_is_valid(iterator_type));
-	assert(tsk_map_iterator_is_valid(iterator_type, iterator));
+TskBoolean tsk_map_iterator_next(const TskType *map_iterator_type, TskMapIterator *map_iterator, TskTuple *item) {
+	assert(tsk_map_iterator_type_is_valid(map_iterator_type));
+	assert(tsk_map_iterator_is_valid(map_iterator_type, map_iterator));
 
-	const TskType *map_type  = tsk_map_iterator_map_type(iterator_type);
-	const TskType *item_type = tsk_map_iterator_item_type(iterator_type);
+	const TskType *map_type  = tsk_map_type(tsk_map_iterator_key_type(map_iterator_type), tsk_map_iterator_value_type(map_iterator_type));
+	const TskType *item_type = tsk_map_iterator_item_type(map_iterator_type);
 
-	while (iterator->index < tsk_map_capacity(map_type, iterator->map)) {
-		if (iterator->map->entries[iterator->index].state == TSK_MAP_ENTRY_STATE_OCCUPIED) {
-			const TskAny *key   = tsk_map_get_key_const(map_type, iterator->map, iterator->index);
-			TskAny       *value = tsk_map_get_value(map_type, iterator->map, iterator->index);
+	while (map_iterator->index < tsk_map_capacity(map_type, map_iterator->map)) {
+		if (map_iterator->map->entries[map_iterator->index].state == TSK_MAP_ENTRY_STATE_OCCUPIED) {
+			const TskAny *key   = tsk_map_get_key_const(map_type, map_iterator->map, map_iterator->index);
+			TskAny       *value = tsk_map_get_value(map_type, map_iterator->map, map_iterator->index);
 
 			memcpy(
 			    tsk_tuple_get(item_type, item, 0),
@@ -836,14 +870,21 @@ TskBoolean tsk_map_iterator_next(const TskType *iterator_type, TskMapIterator *i
 			    tsk_trait_complete_size(tsk_tuple_element_type(item_type, 1))
 			);
 
-			iterator->index++;
+			map_iterator->index++;
 
 			return TSK_TRUE;
 		}
-		iterator->index++;
+		map_iterator->index++;
 	}
 
 	return TSK_FALSE;
+}
+
+const TskType *tsk_map_iterator_type_trait_iterator_item_type(const TskType *iterator_type) {
+	return tsk_map_iterator_item_type(iterator_type);
+}
+TskBoolean tsk_map_iterator_type_trait_iterator_next(const TskType *iterator_type, TskAny *iterator, TskAny *item) {
+	return tsk_map_iterator_next(iterator_type, iterator, item);
 }
 
 // clang-format off
@@ -861,6 +902,10 @@ TSK_TYPE(tsk_map_iterator_type_, TskMapIterator,
 	TSK_TYPE_TRAIT(tsk_map_iterator_type_, TSK_TRAIT_ID_EQUATABLE, &(TskTraitEquatable){
 		.equals = TSK_NULL,
 	}),
+	TSK_TYPE_TRAIT(tsk_map_iterator_type_, TSK_TRAIT_ID_ITERATOR, &(TskTraitIterator){
+		.item_type = tsk_map_iterator_type_trait_iterator_item_type,
+		.next      = tsk_map_iterator_type_trait_iterator_next,
+	}),
 );
 // clang-format on
 
@@ -872,22 +917,28 @@ TskBoolean tsk_map_iterator_type_is_valid(const TskType *map_iterator_type) {
 	return tsk_type_is_valid(map_iterator_type) &&
 	       &tsk_map_iterator_types[0] <= (const TskMapIteratorType *)map_iterator_type && (const TskMapIteratorType *)map_iterator_type < &tsk_map_iterator_types[TSK_MAP_ITERATOR_TYPES_CAPACITY];
 }
-const TskType *tsk_map_iterator_type(const TskType *map_type) {
-	assert(tsk_map_type_is_valid(map_type));
+const TskType *tsk_map_iterator_type(const TskType *key_type, const TskType *value_type) {
+	assert(tsk_type_is_valid(key_type));
+	assert(tsk_type_has_trait(key_type, TSK_TRAIT_ID_COMPLETE));
+	assert(tsk_type_has_trait(key_type, TSK_TRAIT_ID_EQUATABLE));
+	assert(tsk_type_has_trait(key_type, TSK_TRAIT_ID_HASHABLE));
+	assert(tsk_type_is_valid(value_type));
+	assert(tsk_type_has_trait(value_type, TSK_TRAIT_ID_COMPLETE));
 
 	const TskType             *hasher_type = tsk_trait_builder_built_type(tsk_default_hasher_builder_type);
 	alignas(max_align_t) TskU8 hasher[tsk_trait_complete_size(hasher_type)];
 	tsk_trait_builder_build(tsk_default_hasher_builder_type, tsk_default_hasher_builder, hasher);
 
-	tsk_trait_hasher_combine(hasher_type, hasher, (const TskU8 *)&map_type, sizeof(map_type)); // NOLINT(bugprone-sizeof-expression)
+	tsk_trait_hasher_combine(hasher_type, hasher, (const TskU8 *)&key_type, sizeof(key_type));     // NOLINT(bugprone-sizeof-expression)
+	tsk_trait_hasher_combine(hasher_type, hasher, (const TskU8 *)&value_type, sizeof(value_type)); // NOLINT(bugprone-sizeof-expression)
 	TskU64 hash = tsk_trait_hasher_finalize(hasher_type, hasher);
 
 	tsk_trait_droppable_drop(hasher_type, hasher);
 
 	TskUSize starting_index = hash & (TSK_MAP_ITERATOR_TYPES_CAPACITY - 1);
 	TskUSize index          = starting_index;
-	while (tsk_map_iterator_types[index].map_type != TSK_NULL) {
-		if (tsk_map_iterator_types[index].map_type == map_type) {
+	while (tsk_map_iterator_types[index].key_type != TSK_NULL) {
+		if (tsk_map_iterator_types[index].key_type == key_type && tsk_map_iterator_types[index].value_type == value_type) {
 			return &tsk_map_iterator_types[index].map_iterator_type;
 		}
 		index = (index + 1) & (TSK_MAP_ITERATOR_TYPES_CAPACITY - 1);
@@ -897,13 +948,15 @@ const TskType *tsk_map_iterator_type(const TskType *map_type) {
 	}
 
 	tsk_map_iterator_types[index].map_iterator_type = *tsk_map_iterator_type_;
-	tsk_map_iterator_types[index].map_type          = map_type;
+	tsk_map_iterator_types[index].key_type          = key_type;
+	tsk_map_iterator_types[index].value_type        = value_type;
 
 	(void)snprintf(
 	    tsk_map_iterator_types[index].map_iterator_type_name,
 	    sizeof(tsk_map_iterator_types[index].map_iterator_type_name),
-	    "TskMapIterator<%s>",
-	    tsk_type_name(map_type)
+	    "TskMapIterator<%s, %s>",
+	    tsk_type_name(key_type),
+	    tsk_type_name(value_type)
 	);
 	tsk_map_iterator_types[index].map_iterator_type.name = tsk_map_iterator_types[index].map_iterator_type_name;
 
@@ -923,7 +976,175 @@ TskMapIterator tsk_map_iterator(const TskType *map_type, TskMap *map) {
 		.index = 0,
 	};
 
-	assert(tsk_map_iterator_is_valid(tsk_map_iterator_type(map_type), &map_iterator));
+	assert(tsk_map_iterator_is_valid(tsk_map_iterator_type(tsk_map_key_type(map_type), tsk_map_value_type(map_type)), &map_iterator));
+
+	return map_iterator;
+}
+
+typedef struct TskMapIteratorConstType TskMapIteratorConstType;
+struct TskMapIteratorConstType {
+	TskType        map_iterator_const_type;
+	TskCharacter   map_iterator_const_type_name[40];
+	const TskType *key_type;
+	const TskType *value_type;
+};
+
+TskBoolean tsk_map_iterator_const_is_valid(const TskType *map_iterator_type, const TskMapIteratorConst *map_iterator) {
+	assert(tsk_map_iterator_const_type_is_valid(map_iterator_type));
+
+	return map_iterator != TSK_NULL && tsk_map_is_valid(tsk_map_type(tsk_map_iterator_const_key_type(map_iterator_type), tsk_map_iterator_const_value_type(map_iterator_type)), map_iterator->map);
+}
+const TskType *tsk_map_iterator_const_key_type(const TskType *map_iterator_type) {
+	assert(tsk_map_iterator_const_type_is_valid(map_iterator_type));
+
+	return ((const TskMapIteratorConstType *)map_iterator_type)->key_type;
+}
+const TskType *tsk_map_iterator_const_value_type(const TskType *map_iterator_type) {
+	assert(tsk_map_iterator_const_type_is_valid(map_iterator_type));
+
+	return ((const TskMapIteratorConstType *)map_iterator_type)->value_type;
+}
+const TskType *tsk_map_iterator_const_item_type(const TskType *map_iterator_type) {
+	assert(tsk_map_iterator_const_type_is_valid(map_iterator_type));
+
+	return tsk_tuple_type(
+	    (const TskType *[]){
+	        tsk_reference_const_type(tsk_map_iterator_const_key_type(map_iterator_type)),
+	        tsk_reference_const_type(tsk_map_iterator_const_value_type(map_iterator_type)),
+	    },
+	    2
+	);
+}
+TskBoolean tsk_map_iterator_const_next(const TskType *map_iterator_type, TskMapIteratorConst *map_iterator, TskTuple *item) {
+	assert(tsk_map_iterator_const_type_is_valid(map_iterator_type));
+	assert(tsk_map_iterator_const_is_valid(map_iterator_type, map_iterator));
+
+	const TskType *map_type  = tsk_map_type(tsk_map_iterator_const_key_type(map_iterator_type), tsk_map_iterator_const_value_type(map_iterator_type));
+	const TskType *item_type = tsk_map_iterator_const_item_type(map_iterator_type);
+
+	while (map_iterator->index < tsk_map_capacity(map_type, map_iterator->map)) {
+		if (map_iterator->map->entries[map_iterator->index].state == TSK_MAP_ENTRY_STATE_OCCUPIED) {
+			const TskAny *key   = tsk_map_get_key_const(map_type, map_iterator->map, map_iterator->index);
+			const TskAny *value = tsk_map_get_value_const(map_type, map_iterator->map, map_iterator->index);
+
+			memcpy(
+			    tsk_tuple_get(item_type, item, 0),
+			    &key,
+			    tsk_trait_complete_size(tsk_tuple_element_type(item_type, 0))
+			);
+			memcpy(
+			    tsk_tuple_get(item_type, item, 1),
+			    &value,
+			    tsk_trait_complete_size(tsk_tuple_element_type(item_type, 1))
+			);
+
+			map_iterator->index++;
+
+			return TSK_TRUE;
+		}
+		map_iterator->index++;
+	}
+
+	return TSK_FALSE;
+}
+
+const TskType *tsk_map_iterator_const_type_trait_iterator_item_type(const TskType *iterator_type) {
+	return tsk_map_iterator_const_item_type(iterator_type);
+}
+TskBoolean tsk_map_iterator_const_type_trait_iterator_next(const TskType *iterator_type, TskAny *iterator, TskAny *item) {
+	return tsk_map_iterator_const_next(iterator_type, iterator, item);
+}
+
+// clang-format off
+TSK_TYPE(tsk_map_iterator_const_type_, TskMapIteratorConst,
+	TSK_TYPE_TRAIT(tsk_map_iterator_const_type_, TSK_TRAIT_ID_COMPLETE, &(TskTraitComplete){
+		.size      = sizeof(TskMapIteratorConst),
+		.alignment = alignof(TskMapIteratorConst),
+	}),
+	TSK_TYPE_TRAIT(tsk_map_iterator_const_type_, TSK_TRAIT_ID_DROPPABLE, &(TskTraitDroppable){
+		.drop = TSK_NULL,
+	}),
+	TSK_TYPE_TRAIT(tsk_map_iterator_const_type_, TSK_TRAIT_ID_CLONABLE, &(TskTraitClonable){
+		.clone = TSK_NULL,
+	}),
+	TSK_TYPE_TRAIT(tsk_map_iterator_const_type_, TSK_TRAIT_ID_EQUATABLE, &(TskTraitEquatable){
+		.equals = TSK_NULL,
+	}),
+	TSK_TYPE_TRAIT(tsk_map_iterator_const_type_, TSK_TRAIT_ID_ITERATOR, &(TskTraitIterator){
+		.item_type = tsk_map_iterator_const_type_trait_iterator_item_type,
+		.next      = tsk_map_iterator_const_type_trait_iterator_next,
+	}),
+);
+// clang-format on
+
+#define TSK_MAP_ITERATOR_CONST_TYPES_CAPACITY ((TskUSize)1 << 7)
+
+TskMapIteratorConstType tsk_map_iterator_const_types[TSK_MAP_ITERATOR_CONST_TYPES_CAPACITY];
+
+TskBoolean tsk_map_iterator_const_type_is_valid(const TskType *map_iterator_type) {
+	return tsk_type_is_valid(map_iterator_type) &&
+	       &tsk_map_iterator_const_types[0] <= (const TskMapIteratorConstType *)map_iterator_type && (const TskMapIteratorConstType *)map_iterator_type < &tsk_map_iterator_const_types[TSK_MAP_ITERATOR_CONST_TYPES_CAPACITY];
+}
+const TskType *tsk_map_iterator_const_type(const TskType *key_type, const TskType *value_type) {
+	assert(tsk_type_is_valid(key_type));
+	assert(tsk_type_has_trait(key_type, TSK_TRAIT_ID_COMPLETE));
+	assert(tsk_type_has_trait(key_type, TSK_TRAIT_ID_EQUATABLE));
+	assert(tsk_type_has_trait(key_type, TSK_TRAIT_ID_HASHABLE));
+	assert(tsk_type_is_valid(value_type));
+	assert(tsk_type_has_trait(value_type, TSK_TRAIT_ID_COMPLETE));
+
+	const TskType             *hasher_type = tsk_trait_builder_built_type(tsk_default_hasher_builder_type);
+	alignas(max_align_t) TskU8 hasher[tsk_trait_complete_size(hasher_type)];
+	tsk_trait_builder_build(tsk_default_hasher_builder_type, tsk_default_hasher_builder, hasher);
+
+	tsk_trait_hasher_combine(hasher_type, hasher, (const TskU8 *)&key_type, sizeof(key_type));     // NOLINT(bugprone-sizeof-expression)
+	tsk_trait_hasher_combine(hasher_type, hasher, (const TskU8 *)&value_type, sizeof(value_type)); // NOLINT(bugprone-sizeof-expression)
+	TskU64 hash = tsk_trait_hasher_finalize(hasher_type, hasher);
+
+	tsk_trait_droppable_drop(hasher_type, hasher);
+
+	TskUSize starting_index = hash & (TSK_MAP_ITERATOR_CONST_TYPES_CAPACITY - 1);
+	TskUSize index          = starting_index;
+	while (tsk_map_iterator_const_types[index].key_type != TSK_NULL) {
+		if (tsk_map_iterator_const_types[index].key_type == key_type && tsk_map_iterator_const_types[index].value_type == value_type) {
+			return &tsk_map_iterator_const_types[index].map_iterator_const_type;
+		}
+		index = (index + 1) & (TSK_MAP_ITERATOR_CONST_TYPES_CAPACITY - 1);
+		if (index == starting_index) {
+			return TSK_NULL;
+		}
+	}
+
+	tsk_map_iterator_const_types[index].map_iterator_const_type = *tsk_map_iterator_const_type_;
+	tsk_map_iterator_const_types[index].key_type                = key_type;
+	tsk_map_iterator_const_types[index].value_type              = value_type;
+
+	(void)snprintf(
+	    tsk_map_iterator_const_types[index].map_iterator_const_type_name,
+	    sizeof(tsk_map_iterator_const_types[index].map_iterator_const_type_name),
+	    "TskMapIteratorConst<%s, %s>",
+	    tsk_type_name(key_type),
+	    tsk_type_name(value_type)
+	);
+	tsk_map_iterator_const_types[index].map_iterator_const_type.name = tsk_map_iterator_const_types[index].map_iterator_const_type_name;
+
+	const TskType *map_iterator_type                                 = &tsk_map_iterator_const_types[index].map_iterator_const_type;
+
+	assert(tsk_map_iterator_const_type_is_valid(map_iterator_type));
+
+	return map_iterator_type;
+}
+
+TskMapIteratorConst tsk_map_iterator_const(const TskType *map_type, const TskMap *map) {
+	assert(tsk_map_type_is_valid(map_type));
+	assert(tsk_map_is_valid(map_type, map));
+
+	TskMapIteratorConst map_iterator = {
+		.map   = map,
+		.index = 0,
+	};
+
+	assert(tsk_map_iterator_const_is_valid(tsk_map_iterator_const_type(tsk_map_key_type(map_type), tsk_map_value_type(map_type)), &map_iterator));
 
 	return map_iterator;
 }

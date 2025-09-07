@@ -13,7 +13,7 @@ extern "C" {
 typedef void TskEmpty;
 #if defined(__GNUC__) || defined(__clang__)
 	#pragma GCC diagnostic push
-	#pragma GCC diagnostic ignored "-Wgnu-empty-struct"
+	#pragma GCC diagnostic ignored "-Wpedantic"
 typedef struct {
 } TskUnit;
 	#pragma GCC diagnostic pop

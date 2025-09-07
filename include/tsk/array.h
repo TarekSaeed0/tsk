@@ -19,6 +19,8 @@ TskArray       tsk_array_new(const TskType *array_type);
 TskEmpty       tsk_array_drop(const TskType *array_type, TskArray *array);
 TskBoolean     tsk_array_clone(const TskType *array_type, const TskArray *array_1, TskArray *array_2);
 const TskType *tsk_array_element_type(const TskType *array_type);
+TskAny        *tsk_array_elements(const TskType *array_type, TskArray *array);
+const TskAny  *tsk_array_elements_const(const TskType *array_type, const TskArray *array);
 TskUSize       tsk_array_length(const TskType *array_type, const TskArray *array);
 TskBoolean     tsk_array_is_empty(const TskType *array_type, const TskArray *array);
 TskUSize       tsk_array_capacity(const TskType *array_type, const TskArray *array);
@@ -45,76 +47,106 @@ TskEmpty       tsk_array_hash(const TskType *array_type, const TskArray *array, 
 TskBoolean     tsk_array_type_is_valid(const TskType *array_type);
 const TskType *tsk_array_type(const TskType *element_type);
 
-/* typedef struct TskArrayView TskArrayView;
+typedef struct TskArrayView TskArrayView;
 struct TskArrayView {
-  const TskType *element_type;
-  TskAny        *elements;
-  TskUSize       length;
-  TskISize       stride;
+	const TskType *element_type;
+	TskAny        *elements;
+	TskUSize       length;
+	TskISize       stride;
 };
-TskBoolean        tsk_array_view_is_valid(TskArrayView array_view);
-TskArrayView   tsk_array_view_slice(TskArrayView array_view, TskUSize start, TskUSize end, TskISize step);
-const TskType *tsk_array_view_element_type(TskArrayView array_view);
-TskUSize       tsk_array_view_length(TskArrayView array_view);
-TskBoolean        tsk_array_view_is_empty(TskArrayView array_view);
-TskISize       tsk_array_view_stride(TskArrayView array_view);
-TskAny        *tsk_array_view_get(TskArrayView array_view, TskUSize index);
-TskAny        *tsk_array_view_front(TskArrayView array_view);
-TskAny        *tsk_array_view_back(TskArrayView array_view);
-TskEmpty       tsk_array_view_swap(TskArrayView array_view, TskUSize index_1, TskUSize index_2);
-TskBoolean        tsk_array_view_linear_search(TskArrayView array_view, const TskAny *element, TskUSize *index);
-TskBoolean        tsk_array_view_binary_search(TskArrayView array_view, const TskAny *element, TskUSize *index);
-TskUSize       tsk_array_view_lower_bound(TskArrayView array_view, const TskAny *element);
-TskUSize       tsk_array_view_upper_bound(TskArrayView array_view, const TskAny *element);
-TskEmpty       tsk_array_view_equal_range(TskArrayView array_view, const TskAny *element, TskUSize *start, TskUSize *end);
-TskEmpty       tsk_array_view_sort(TskArrayView array_view);
-TskBoolean        tsk_array_view_is_sorted(TskArrayView array_view);
-TskUSize       tsk_array_view_sorted_until(TskArrayView array_view);
-TskEmpty       tsk_array_view_partition(TskArrayView array_view, TskBoolean (*predicate)(const TskAny *element));
-TskBoolean        tsk_array_view_is_partitioned(TskArrayView array_view, TskBoolean (*predicate)(const TskAny *element));
-TskUSize       tsk_array_view_partition_point(TskArrayView array_view, TskBoolean (*predicate)(const TskAny *element));
-TskEmpty       tsk_array_view_reverse(TskArrayView array_view);
-TskOrdering    tsk_array_view_compare(TskArrayView array_view_1, TskArrayView array_view_2);
-TskBoolean        tsk_array_view_equals(TskArrayView array_view_1, TskArrayView array_view_2);
-TskEmpty       tsk_array_view_hash(TskArrayView array_view, const TskTraitHasher *trait_hasher, TskAny *hasher);
+TskBoolean     tsk_array_view_is_valid(const TskType *array_view_type, TskArrayView array_view);
+TskArrayView   tsk_array_view_new(const TskType *array_view_type, TskAny *elements, TskUSize length, TskISize stride);
+TskArrayView   tsk_array_view_slice(const TskType *array_view_type, TskArrayView array_view, TskUSize start, TskUSize end, TskISize step);
+const TskType *tsk_array_view_element_type(const TskType *array_view_type);
+TskAny        *tsk_array_view_elements(const TskType *array_view_type, TskArrayView array_view);
+TskUSize       tsk_array_view_length(const TskType *array_view_type, TskArrayView array_view);
+TskBoolean     tsk_array_view_is_empty(const TskType *array_view_type, TskArrayView array_view);
+TskISize       tsk_array_view_stride(const TskType *array_view_type, TskArrayView array_view);
+TskAny        *tsk_array_view_get(const TskType *array_view_type, TskArrayView array_view, TskUSize index);
+TskAny        *tsk_array_view_front(const TskType *array_view_type, TskArrayView array_view);
+TskAny        *tsk_array_view_back(const TskType *array_view_type, TskArrayView array_view);
+TskEmpty       tsk_array_view_swap(const TskType *array_view_type, TskArrayView array_view, TskUSize index_1, TskUSize index_2);
+TskEmpty       tsk_array_view_sort(const TskType *array_view_type, TskArrayView array_view);
+TskEmpty       tsk_array_view_partition(const TskType *array_view_type, TskArrayView array_view, TskBoolean (*predicate)(const TskAny *element));
+TskEmpty       tsk_array_view_reverse(const TskType *array_view_type, TskArrayView array_view);
+TskOrdering    tsk_array_view_compare(const TskType *array_view_type, TskArrayView array_view_1, TskArrayView array_view_2);
+TskBoolean     tsk_array_view_equals(const TskType *array_view_type, TskArrayView array_view_1, TskArrayView array_view_2);
+TskEmpty       tsk_array_view_hash(const TskType *array_view_type, TskArrayView array_view, const TskType *hasher_type, TskAny *hasher);
 
-extern const TskType tsk_array_view_type;
+TskBoolean     tsk_array_view_type_is_valid(const TskType *array_view_type);
+const TskType *tsk_array_view_type(const TskType *element_type);
+
+TskArrayView tsk_array_view(const TskType *array_type, TskArray *array);
 
 typedef struct TskArrayViewConst TskArrayViewConst;
 struct TskArrayViewConst {
-  const TskType *element_type;
-  const TskAny  *elements;
-  TskUSize       length;
-  TskISize       stride;
+	const TskAny *elements;
+	TskUSize      length;
+	TskISize      stride;
 };
-TskBoolean           tsk_array_view_const_is_valid(TskArrayViewConst array_view);
-TskArrayViewConst tsk_array_view_const_slice(TskArrayViewConst array_view, TskUSize start, TskUSize end, TskISize step);
-const TskType    *tsk_array_view_const_element_type(TskArrayViewConst array_view);
-TskUSize          tsk_array_view_const_length(TskArrayViewConst array_view);
-TskBoolean           tsk_array_view_const_is_empty(TskArrayViewConst array_view);
-TskISize          tsk_array_view_const_stride(TskArrayViewConst array_view);
-const TskAny     *tsk_array_view_const_get(TskArrayViewConst array_view, TskUSize index);
-const TskAny     *tsk_array_view_const_front(TskArrayViewConst array_view);
-const TskAny     *tsk_array_view_const_back(TskArrayViewConst array_view);
-TskBoolean           tsk_array_view_const_linear_search(TskArrayViewConst array_view, const TskAny *element, TskUSize *index);
-TskBoolean           tsk_array_view_const_binary_search(TskArrayViewConst array_view, const TskAny *element, TskUSize *index);
-TskUSize          tsk_array_view_const_lower_bound(TskArrayViewConst array_view, const TskAny *element);
-TskUSize          tsk_array_view_const_upper_bound(TskArrayViewConst array_view, const TskAny *element);
-TskEmpty          tsk_array_view_const_equal_range(TskArrayViewConst array_view, const TskAny *element, TskUSize *start, TskUSize *end);
-TskBoolean           tsk_array_view_const_is_sorted(TskArrayViewConst array_view);
-TskUSize          tsk_array_view_const_sorted_until(TskArrayViewConst array_view);
-TskBoolean           tsk_array_view_const_is_partitioned(TskArrayViewConst array_view, TskBoolean (*predicate)(const TskAny *element));
-TskUSize          tsk_array_view_const_partition_point(TskArrayViewConst array_view, TskBoolean (*predicate)(const TskAny *element));
-TskOrdering       tsk_array_view_const_compare(TskArrayViewConst array_view_1, TskArrayViewConst array_view_2);
-TskBoolean           tsk_array_view_const_equals(TskArrayViewConst array_view_1, TskArrayViewConst array_view_2);
-TskEmpty          tsk_array_view_const_hash(TskArrayViewConst array_view, const TskTraitHasher *trait_hasher, TskAny *hasher);
+TskBoolean        tsk_array_view_const_is_valid(const TskType *array_view_type, TskArrayViewConst array_view);
+TskArrayViewConst tsk_array_view_const_new(const TskType *array_view_type, const TskAny *elements, TskUSize length, TskISize stride);
+TskArrayViewConst tsk_array_view_const_slice(const TskType *array_view_type, TskArrayViewConst array_view, TskUSize start, TskUSize end, TskISize step);
+const TskType    *tsk_array_view_const_element_type(const TskType *array_view_type);
+const TskAny     *tsk_array_view_const_elements(const TskType *array_view_type, TskArrayViewConst array_view);
+TskUSize          tsk_array_view_const_length(const TskType *array_view_type, TskArrayViewConst array_view);
+TskBoolean        tsk_array_view_const_is_empty(const TskType *array_view_type, TskArrayViewConst array_view);
+TskISize          tsk_array_view_const_stride(const TskType *array_view_type, TskArrayViewConst array_view);
+const TskAny     *tsk_array_view_const_get(const TskType *array_view_type, TskArrayViewConst array_view, TskUSize index);
+const TskAny     *tsk_array_view_const_front(const TskType *array_view_type, TskArrayViewConst array_view);
+const TskAny     *tsk_array_view_const_back(const TskType *array_view_type, TskArrayViewConst array_view);
+TskBoolean        tsk_array_view_const_linear_search(const TskType *array_view_type, TskArrayViewConst array_view, const TskAny *element, TskUSize *index);
+TskBoolean        tsk_array_view_const_binary_search(const TskType *array_view_type, TskArrayViewConst array_view, const TskAny *element, TskUSize *index);
+TskUSize          tsk_array_view_const_lower_bound(const TskType *array_view_type, TskArrayViewConst array_view, const TskAny *element);
+TskUSize          tsk_array_view_const_upper_bound(const TskType *array_view_type, TskArrayViewConst array_view, const TskAny *element);
+TskEmpty          tsk_array_view_const_equal_range(const TskType *array_view_type, TskArrayViewConst array_view, const TskAny *element, TskUSize *start, TskUSize *end);
+TskBoolean        tsk_array_view_const_is_sorted(const TskType *array_view_type, TskArrayViewConst array_view);
+TskUSize          tsk_array_view_const_sorted_until(const TskType *array_view_type, TskArrayViewConst array_view);
+TskBoolean        tsk_array_view_const_is_partitioned(const TskType *array_view_type, TskArrayViewConst array_view, TskBoolean (*predicate)(const TskAny *element));
+TskUSize          tsk_array_view_const_partition_point(const TskType *array_view_type, TskArrayViewConst array_view, TskBoolean (*predicate)(const TskAny *element));
+TskOrdering       tsk_array_view_const_compare(const TskType *array_view_type, TskArrayViewConst array_view_1, TskArrayViewConst array_view_2);
+TskBoolean        tsk_array_view_const_equals(const TskType *array_view_type, TskArrayViewConst array_view_1, TskArrayViewConst array_view_2);
+TskEmpty          tsk_array_view_const_hash(const TskType *array_view_type, TskArrayViewConst array_view, const TskType *hasher_type, TskAny *hasher);
 
-extern const TskType tsk_array_view_const_type;
+TskBoolean     tsk_array_view_const_type_is_valid(const TskType *array_view_type);
+const TskType *tsk_array_view_const_type(const TskType *element_type);
 
-TskArrayView      tsk_array_to_view(TskArray *array);
-TskArrayViewConst tsk_array_to_view_const(const TskArray *array);
+TskArrayViewConst tsk_array_view_const(const TskType *array_type, const TskArray *array);
+TskArrayViewConst tsk_array_view_as_const(const TskType *array_view_type, TskArrayView array_view);
 
-TskArrayViewConst tsk_array_view_to_const(TskArrayView array_view); */
+typedef struct TskArrayIterator TskArrayIterator;
+struct TskArrayIterator {
+	TskAny  *elements;
+	TskUSize length;
+	TskISize stride;
+};
+TskBoolean     tsk_array_iterator_is_valid(const TskType *array_iterator_type, const TskArrayIterator *array_iterator);
+const TskType *tsk_array_iterator_element_type(const TskType *array_iterator_type);
+const TskType *tsk_array_iterator_item_type(const TskType *array_iterator_type);
+TskBoolean     tsk_array_iterator_next(const TskType *array_iterator_type, TskArrayIterator *array_iterator, TskAny *item);
+
+TskBoolean     tsk_array_iterator_type_is_valid(const TskType *array_iterator_type);
+const TskType *tsk_array_iterator_type(const TskType *element_type);
+
+TskArrayIterator tsk_array_iterator(const TskType *array_type, TskArray *array);
+TskArrayIterator tsk_array_view_iterator(const TskType *array_view_type, TskArrayView array_view);
+
+typedef struct TskArrayIteratorConst TskArrayIteratorConst;
+struct TskArrayIteratorConst {
+	const TskAny *elements;
+	TskUSize      length;
+	TskISize      stride;
+};
+TskBoolean     tsk_array_iterator_const_is_valid(const TskType *array_iterator_type, const TskArrayIteratorConst *array_iterator);
+const TskType *tsk_array_iterator_const_element_type(const TskType *array_iterator_type);
+const TskType *tsk_array_iterator_const_item_type(const TskType *array_iterator_type);
+TskBoolean     tsk_array_iterator_const_next(const TskType *array_iterator_type, TskArrayIteratorConst *array_iterator, TskAny *item);
+
+TskBoolean     tsk_array_iterator_const_type_is_valid(const TskType *array_iterator_type);
+const TskType *tsk_array_iterator_const_type(const TskType *element_type);
+
+TskArrayIteratorConst tsk_array_iterator_const(const TskType *array_type, const TskArray *array);
+TskArrayIteratorConst tsk_array_view_const_iterator(const TskType *array_view_type, TskArrayViewConst array_view);
 
 #ifdef __cplusplus
 }

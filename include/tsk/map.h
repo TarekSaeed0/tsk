@@ -50,15 +50,32 @@ struct TskMapIterator {
 	TskMap  *map;
 	TskUSize index;
 };
-TskBoolean     tsk_map_iterator_is_valid(const TskType *iterator_type, const TskMapIterator *iterator);
-const TskType *tsk_map_iterator_map_type(const TskType *iterator_type);
-const TskType *tsk_map_iterator_item_type(const TskType *iterator_type);
-TskBoolean     tsk_map_iterator_next(const TskType *iterator_type, TskMapIterator *iterator, TskTuple *item);
+TskBoolean     tsk_map_iterator_is_valid(const TskType *map_iterator_type, const TskMapIterator *map_iterator);
+const TskType *tsk_map_iterator_key_type(const TskType *map_iterator_type);
+const TskType *tsk_map_iterator_value_type(const TskType *map_iterator_type);
+const TskType *tsk_map_iterator_item_type(const TskType *map_iterator_type);
+TskBoolean     tsk_map_iterator_next(const TskType *map_iterator_type, TskMapIterator *map_iterator, TskTuple *item);
 
-TskBoolean     tsk_map_iterator_type_is_valid(const TskType *iterator_type);
-const TskType *tsk_map_iterator_type(const TskType *map_type);
+TskBoolean     tsk_map_iterator_type_is_valid(const TskType *map_iterator_type);
+const TskType *tsk_map_iterator_type(const TskType *key_type, const TskType *value_type);
 
 TskMapIterator tsk_map_iterator(const TskType *map_type, TskMap *map);
+
+typedef struct TskMapIteratorConst TskMapIteratorConst;
+struct TskMapIteratorConst {
+	const TskMap *map;
+	TskUSize      index;
+};
+TskBoolean     tsk_map_iterator_const_is_valid(const TskType *map_iterator_type, const TskMapIteratorConst *map_iterator);
+const TskType *tsk_map_iterator_const_key_type(const TskType *map_iterator_type);
+const TskType *tsk_map_iterator_const_value_type(const TskType *map_iterator_type);
+const TskType *tsk_map_iterator_const_item_type(const TskType *map_iterator_type);
+TskBoolean     tsk_map_iterator_const_next(const TskType *map_iterator_type, TskMapIteratorConst *map_iterator, TskTuple *item);
+
+TskBoolean     tsk_map_iterator_const_type_is_valid(const TskType *map_iterator_type);
+const TskType *tsk_map_iterator_const_type(const TskType *key_type, const TskType *value_type);
+
+TskMapIteratorConst tsk_map_iterator_const(const TskType *map_type, const TskMap *map);
 
 #ifdef __cplusplus
 }
