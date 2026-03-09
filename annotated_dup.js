@@ -5,6 +5,7 @@ var annotated_dup =
     [ "TskArrayIteratorConst", "structTskArrayIteratorConst.html", null ],
     [ "TskArrayView", "structTskArrayView.html", null ],
     [ "TskArrayViewConst", "structTskArrayViewConst.html", null ],
+    [ "TskDeque", "structTskDeque.html", null ],
     [ "TskList", "structTskList.html", null ],
     [ "TskListIterator", "structTskListIterator.html", null ],
     [ "TskListIteratorConst", "structTskListIteratorConst.html", null ],
