@@ -646,7 +646,7 @@ TskBoolean tsk_list_iterator_type_is_valid(const TskType *list_iterator_type) {
 	       &tsk_list_iterator_types[0] <= (const TskListIteratorType *)list_iterator_type && (const TskListIteratorType *)list_iterator_type < &tsk_list_iterator_types[TSK_LIST_ITERATOR_TYPES_CAPACITY];
 }
 const TskType *tsk_list_iterator_type(const TskType *element_type) {
-	assert(tsk_list_type_is_valid(element_type));
+	assert(tsk_type_is_valid(element_type));
 	assert(tsk_type_has_trait(element_type, TSK_TRAIT_ID_COMPLETE));
 
 	const TskType             *hasher_type = tsk_trait_builder_built_type(tsk_default_hasher_builder_type);

@@ -9,6 +9,7 @@
 #include <tsk/tuple.h>
 
 #include <assert.h>
+#include <inttypes.h>
 #include <stdio.h>
 
 typedef struct FibonacciIterator FibonacciIterator;
@@ -113,11 +114,11 @@ int main(void) {
 	tsk_list_extend_from_iterator(list_type, &list, fibonacci_iterator_type, &fibonacci_iterator, 10);
 
 	const TskType  *iterator_type = tsk_list_iterator_type(tsk_u64_type);
-	TskListIterator iterator      = tsk_list_iterator(iterator_type, &list);
+	TskListIterator iterator      = tsk_list_iterator(list_type, &list);
 
 	{
-		for (TskU64 *item = TSK_NULL; tsk_list_iterator_next(iterator_type, &iterator, (TskAny *)&item);) {
-			printf("%llu ", (unsigned long long)*item);
+		for (TskU64 item = 0; tsk_list_iterator_next(iterator_type, &iterator, &item);) {
+			printf("%" PRIu64 " ", item);
 		}
 		printf("\n");
 	}

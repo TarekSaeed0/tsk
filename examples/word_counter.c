@@ -95,16 +95,18 @@ int main(void) {
 		(*frequency)++;
 	}
 
-	TskMapIteratorConst word_frequency_iterator = tsk_map_iterator_const(
-	    tsk_map_type(tsk_array_view_const_type(tsk_character_type), tsk_u32_type),
-	    &words_frequency
-	);
-
+	struct {
+		const TskArrayViewConst *key;
+		const TskU32            *value;
+	} item;
 	for (
-	    struct { const TskArrayViewConst *key; const TskU32 *value; } item;
+	    TskMapIteratorConst iterator = tsk_map_iterator_const(
+	        tsk_map_type(tsk_array_view_const_type(tsk_character_type), tsk_u32_type),
+	        &words_frequency
+	    );
 	    tsk_map_iterator_const_next(
 	        tsk_map_iterator_const_type(tsk_array_view_const_type(tsk_character_type), tsk_u32_type),
-	        &word_frequency_iterator,
+	        &iterator,
 	        &item
 	    );
 	) {

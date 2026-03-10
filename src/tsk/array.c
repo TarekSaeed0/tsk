@@ -1139,8 +1139,7 @@ TskUSize tsk_array_view_const_lower_bound(const TskType *array_view_type, TskArr
 	assert(tsk_type_has_trait(tsk_array_view_const_element_type(array_view_type), TSK_TRAIT_ID_COMPARABLE));
 
 	TskUSize left  = 0;
-	TskUSize right = tsk_array_view_const_length(array_view_type, array_view) - 1;
-	TskUSize index = tsk_array_view_const_length(array_view_type, array_view);
+	TskUSize right = tsk_array_view_const_length(array_view_type, array_view);
 	while (left < right) {
 		TskUSize    middle   = left + ((right - left) / 2);
 		TskOrdering ordering = tsk_trait_comparable_compare(
@@ -1154,13 +1153,12 @@ TskUSize tsk_array_view_const_lower_bound(const TskType *array_view_type, TskArr
 			} break;
 			case TSK_ORDERING_EQUAL:
 			case TSK_ORDERING_GREATER: {
-				index = middle;
 				right = middle;
 			} break;
 		}
 	}
 
-	return index;
+	return left;
 }
 TskUSize tsk_array_view_const_upper_bound(const TskType *array_view_type, TskArrayViewConst array_view, const TskAny *element) {
 	assert(tsk_array_view_const_type_is_valid(array_view_type));
@@ -1169,8 +1167,7 @@ TskUSize tsk_array_view_const_upper_bound(const TskType *array_view_type, TskArr
 	assert(tsk_type_has_trait(tsk_array_view_const_element_type(array_view_type), TSK_TRAIT_ID_COMPARABLE));
 
 	TskUSize left  = 0;
-	TskUSize right = tsk_array_view_const_length(array_view_type, array_view) - 1;
-	TskUSize index = tsk_array_view_const_length(array_view_type, array_view);
+	TskUSize right = tsk_array_view_const_length(array_view_type, array_view);
 	while (left < right) {
 		TskUSize    middle   = left + ((right - left) / 2);
 		TskOrdering ordering = tsk_trait_comparable_compare(
@@ -1184,13 +1181,12 @@ TskUSize tsk_array_view_const_upper_bound(const TskType *array_view_type, TskArr
 				left = middle + 1;
 			} break;
 			case TSK_ORDERING_GREATER: {
-				index = middle;
 				right = middle;
 			} break;
 		}
 	}
 
-	return index;
+	return left;
 }
 TskEmpty tsk_array_view_const_equal_range(const TskType *array_view_type, TskArrayViewConst array_view, const TskAny *element, TskUSize *start, TskUSize *end) {
 	assert(tsk_array_view_const_type_is_valid(array_view_type));
@@ -1259,19 +1255,17 @@ TskUSize tsk_array_view_const_partition_point(const TskType *array_view_type, Ts
 	assert(predicate != TSK_NULL);
 
 	TskUSize left  = 0;
-	TskUSize right = tsk_array_view_const_length(array_view_type, array_view) - 1;
-	TskUSize index = tsk_array_view_const_length(array_view_type, array_view);
-	while (left <= right) {
+	TskUSize right = tsk_array_view_const_length(array_view_type, array_view);
+	while (left < right) {
 		TskUSize middle = left + ((right - left) / 2);
 		if (predicate(tsk_array_view_const_get(array_view_type, array_view, middle))) {
 			left = middle + 1;
 		} else {
-			index = middle;
-			right = middle - 1;
+			right = middle;
 		}
 	}
 
-	return index;
+	return left;
 }
 TskOrdering tsk_array_view_const_compare(const TskType *array_view_type, TskArrayViewConst array_view_1, TskArrayViewConst array_view_2) {
 	assert(tsk_array_view_const_type_is_valid(array_view_type));
@@ -1725,7 +1719,7 @@ TskBoolean tsk_array_iterator_const_type_is_valid(const TskType *array_iterator_
 	       &tsk_array_iterator_const_types[0] <= (const TskArrayIteratorConstType *)array_iterator_type && (const TskArrayIteratorConstType *)array_iterator_type < &tsk_array_iterator_const_types[TSK_ARRAY_ITERATOR_CONST_TYPES_CAPACITY];
 }
 const TskType *tsk_array_iterator_const_type(const TskType *element_type) {
-	assert(tsk_array_type_is_valid(element_type));
+	assert(tsk_type_is_valid(element_type));
 	assert(tsk_type_has_trait(element_type, TSK_TRAIT_ID_COMPLETE));
 
 	const TskType             *hasher_type = tsk_trait_builder_built_type(tsk_default_hasher_builder_type);

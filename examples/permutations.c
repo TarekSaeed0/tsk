@@ -1,6 +1,6 @@
-#include "tsk/type.h"
 #include <tsk/array.h>
 #include <tsk/map.h>
+#include <tsk/type.h>
 
 #include <assert.h>
 #include <stdio.h>
@@ -10,10 +10,10 @@ TskBoolean tsk_array_view_next_permutation(const TskType *array_view_type, TskAr
 	assert(tsk_array_view_is_valid(array_view_type, array_view));
 	assert(tsk_type_has_trait(tsk_array_view_element_type(array_view_type), TSK_TRAIT_ID_COMPARABLE));
 
+	array_view                              = tsk_array_view_slice(array_view_type, array_view, tsk_array_view_length(array_view_type, array_view), 0, -1);
+
 	const TskType    *array_view_const_type = tsk_array_view_const_type(tsk_array_view_element_type(array_view_type));
 	TskArrayViewConst array_view_const      = tsk_array_view_as_const(array_view_type, array_view);
-
-	array_view                              = tsk_array_view_slice(array_view_type, array_view, tsk_array_view_length(array_view_type, array_view), 0, -1);
 
 	TskUSize i                              = tsk_array_view_const_sorted_until(array_view_const_type, array_view_const);
 	if (i == tsk_array_view_length(array_view_type, array_view)) {
@@ -30,6 +30,14 @@ TskBoolean tsk_array_view_next_permutation(const TskType *array_view_type, TskAr
 	tsk_array_view_reverse(array_view_type, tsk_array_view_slice(array_view_type, array_view, 0, i, 1));
 
 	return TSK_TRUE;
+}
+
+TskU64 factorial(TskU64 n) {
+	TskU64 result = 1;
+	for (TskU64 i = 2; i <= n; i++) {
+		result *= i;
+	}
+	return result;
 }
 
 TskEmpty tsk_array_view_print(const TskType *array_view_type, TskArrayViewConst array_view, TskEmpty (*print)(const TskAny *element)) {
@@ -54,37 +62,53 @@ TskEmpty print_character(const TskAny *element) {
 	printf("%c", *(const TskCharacter *)element);
 }
 
-TskU64 factorial(TskU64 n) {
-	TskU64 result = 1;
-	for (TskU64 i = 2; i <= n; i++) {
-		result *= i;
-	}
-	return result;
-}
-
 int main(void) {
-	TskArray input     = tsk_array_new(tsk_array_type(tsk_character_type));
-	TskI32   character = EOF;
+	TskArray input   = tsk_array_new(tsk_array_type(tsk_character_type));
+
+	TskI32 character = EOF;
 	while ((character = getchar()) != EOF && character != '\n') {
-		tsk_array_push_back(tsk_array_type(tsk_character_type), &input, &(TskCharacter){ (TskCharacter)character });
+		tsk_array_push_back(
+		    tsk_array_type(tsk_character_type),
+		    &input,
+		    &(TskCharacter){ (TskCharacter)character }
+		);
 	}
 
 	TskMap frequency_map = tsk_map_new(tsk_map_type(tsk_character_type, tsk_u32_type));
 	for (TskUSize i = 0; i < tsk_array_length(tsk_array_type(tsk_character_type), &input); i++) {
-		TskU32 *count = tsk_map_get_or_insert(tsk_map_type(tsk_character_type, tsk_u32_type), &frequency_map, tsk_array_get(tsk_array_type(tsk_character_type), &input, i), &(TskU32){ 0 });
+		TskU32 *count = tsk_map_get_or_insert(
+		    tsk_map_type(tsk_character_type, tsk_u32_type),
+		    &frequency_map,
+		    tsk_array_get(
+		        tsk_array_type(tsk_character_type),
+		        &input,
+		        i
+		    ),
+		    &(TskU32){ 0 }
+		);
 		(*count)++;
 	}
 
 	TskU64 permutation_count = factorial(tsk_array_length(tsk_array_type(tsk_character_type), &input));
 
 	struct {
-		TskCharacter key;
-		TskI32       value;
+		const TskCharacter *key;
+		const TskU32       *value;
 	} item;
-	for (TskMapIterator iterator = tsk_map_iterator(tsk_map_type(tsk_character_type, tsk_u32_type), &frequency_map); tsk_map_iterator_next(tsk_map_iterator_type(tsk_character_type, tsk_u32_type), &iterator, &item);) {
-		printf("'%c': %u\n", item.key, item.value);
+	for (
+	    TskMapIteratorConst iterator = tsk_map_iterator_const(
+	        tsk_map_type(tsk_character_type, tsk_u32_type),
+	        &frequency_map
+	    );
+	    tsk_map_iterator_const_next(
+	        tsk_map_iterator_const_type(tsk_character_type, tsk_u32_type),
+	        &iterator,
+	        &item
+	    );
+	) {
+		printf("'%c': %u\n", *item.key, *item.value);
 
-		permutation_count /= factorial(item.value);
+		permutation_count /= factorial(*item.value);
 	}
 
 	printf("Total permutations: %lu\n", permutation_count);
