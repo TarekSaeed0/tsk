@@ -1,6 +1,6 @@
 var indexSectionsWithContent =
 {
-  0: "t",
+  0: "bflt",
   1: "t",
   2: "t"
 };
@@ -15,7 +15,7 @@ var indexSectionNames =
 var indexSectionLabels =
 {
   0: "All",
-  1: "Classes",
+  1: "Data Structures",
   2: "Pages"
 };
 

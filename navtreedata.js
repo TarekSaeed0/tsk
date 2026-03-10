@@ -25,9 +25,12 @@
 var NAVTREE =
 [
   [ "Tsk", "index.html", [
-    [ "Classes", "annotated.html", [
-      [ "Class List", "annotated.html", "annotated_dup" ],
-      [ "Class Index", "classes.html", null ]
+    [ "Features", "index.html#autotoc_md1", null ],
+    [ "Building", "index.html#autotoc_md2", null ],
+    [ "License", "index.html#autotoc_md3", null ],
+    [ "Data Structures", "annotated.html", [
+      [ "Data Structures", "annotated.html", "annotated_dup" ],
+      [ "Data Structure Index", "classes.html", null ]
     ] ],
     [ "Files", "files.html", [
       [ "File List", "files.html", "files_dup" ]
