@@ -10,7 +10,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 add_library(
-	tsk 
+	tsk
 	src/tsk/type.c
 	src/tsk/trait/complete.c
 	src/tsk/trait/droppable.c
@@ -28,6 +28,7 @@ add_library(
 	src/tsk/array.c
 	src/tsk/list.c
 	src/tsk/map.c
+	src/tsk/deque.c
 )
 target_include_directories(tsk PUBLIC include)
 target_compile_options(
@@ -55,18 +56,22 @@ target_link_options(
 			-fsanitize=address
 )
 
-add_executable(main src/main.c)
-target_link_libraries(main tsk)
-target_compile_options(
-	main 
-	PRIVATE -fsanitize=undefined
-			-fsanitize=address
-)
-target_link_options(
-	main
-	PRIVATE -fsanitize=undefined
-			-fsanitize=address
-)
+file(GLOB EXAMPLES "examples/*.c")
+foreach(EXAMPLE ${EXAMPLES})
+	get_filename_component(EXAMPLE_NAME ${EXAMPLE} NAME_WE)
+	add_executable(${EXAMPLE_NAME} ${EXAMPLE})
+	target_link_libraries(${EXAMPLE_NAME} tsk)
+	target_compile_options(
+								${EXAMPLE_NAME}
+								PRIVATE -fsanitize=undefined
+																-fsanitize=address
+				)
+	target_link_options(
+								${EXAMPLE_NAME}
+								PRIVATE -fsanitize=undefined
+																-fsanitize=address
+				)
+endforeach()
 
 if(UNIT_TESTING)
 	list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmocka)

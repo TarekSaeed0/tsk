@@ -6,7 +6,7 @@
 #include <stdio.h>
 
 TskBoolean is_even(const TskAny *value) {
-	return (*(TskU32 *)value % 2) == 0;
+	return (*(const TskU32 *)value % 2) == 0;
 }
 
 int main(void) {

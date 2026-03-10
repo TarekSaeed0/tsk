@@ -1,6 +1,8 @@
-<h1 align="center">Tsk</h1>
+# Tsk
 
-<p align="center"> A general-purpose library for C </p>
+<div align="center" style="margin-bottom: 1em;">
+A general-purpose library for C
+</div>
 
 <div align="center">
 

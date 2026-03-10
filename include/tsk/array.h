@@ -49,10 +49,9 @@ const TskType *tsk_array_type(const TskType *element_type);
 
 typedef struct TskArrayView TskArrayView;
 struct TskArrayView {
-	const TskType *element_type;
-	TskAny        *elements;
-	TskUSize       length;
-	TskISize       stride;
+	TskAny  *elements;
+	TskUSize length;
+	TskISize stride;
 };
 TskBoolean     tsk_array_view_is_valid(const TskType *array_view_type, TskArrayView array_view);
 TskArrayView   tsk_array_view_new(const TskType *array_view_type, TskAny *elements, TskUSize length, TskISize stride);

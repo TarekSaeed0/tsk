@@ -578,10 +578,9 @@ TskArrayView tsk_array_view_slice(const TskType *array_view_type, TskArrayView a
 		assert(start <= end);
 
 		TskArrayView array_view_slice = {
-			.element_type = tsk_array_view_element_type(array_view_type),
-			.elements     = (TskU8 *)tsk_array_view_elements(array_view_type, array_view) + (start * tsk_trait_complete_size(tsk_array_view_element_type(array_view_type))),
-			.length       = (end - start + (TskUSize)step - 1) / (TskUSize)step,
-			.stride       = tsk_array_view_stride(array_view_type, array_view) * step,
+			.elements = (TskU8 *)tsk_array_view_elements(array_view_type, array_view) + (start * tsk_trait_complete_size(tsk_array_view_element_type(array_view_type))),
+			.length   = (end - start + (TskUSize)step - 1) / (TskUSize)step,
+			.stride   = tsk_array_view_stride(array_view_type, array_view) * step,
 		};
 
 		assert(tsk_array_view_is_valid(array_view_type, array_view_slice));
