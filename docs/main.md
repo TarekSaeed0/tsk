@@ -5,27 +5,14 @@ A general-purpose library for C
 </div>
 
 <div align="center">
-
-<a href="https://github.com/TarekSaeed0/tsk/blob/main/LICENSE">
- <picture>
-    <source media="(prefers-color-scheme: dark)"  srcset="https://img.shields.io/github/license/TarekSaeed0/tsk?style=for-the-badge&labelColor=%23151b23&color=%234493f8">
-    <source media="(prefers-color-scheme: light)" srcset="https://img.shields.io/github/license/TarekSaeed0/tsk?style=for-the-badge&labelColor=%23f6f8fa&color=%230969da">
-    <img alt="GitHub License" src="https://img.shields.io/github/license/TarekSaeed0/tsk?style=for-the-badge&labelColor=%23151b23&color=%234493f8">
- </picture>
-</a>
-<a href="https://github.com/TarekSaeed0/tsk/pulse">
-  <picture>
-    <source media="(prefers-color-scheme: dark)"  srcset="https://img.shields.io/github/last-commit/TarekSaeed0/tsk?style=for-the-badge&labelColor=%23151b23&color=%234493f8">
-    <source media="(prefers-color-scheme: light)" srcset="https://img.shields.io/github/last-commit/TarekSaeed0/tsk?style=for-the-badge&labelColor=%23f6f8fa&color=%230969da">
-    <img alt="GitHub Last Commit" src="https://img.shields.io/github/last-commit/TarekSaeed0/tsk?style=for-the-badge&labelColor=%23151b23&color=%234493f8">
-  </picture>
-</a>
-<a href="https://github.com/TarekSaeed0/tsk/stargazers">
-  <picture>
-    <source media="(prefers-color-scheme: dark)"  srcset="https://img.shields.io/github/stars/TarekSaeed0/tsk?style=for-the-badge&labelColor=%23151b23&color=%234493f8">
-    <source media="(prefers-color-scheme: light)" srcset="https://img.shields.io/github/stars/TarekSaeed0/tsk?style=for-the-badge&labelColor=%23f6f8fa&color=%230969da">
-    <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/TarekSaeed0/tsk?style=for-the-badge&labelColor=%23151b23&color=%234493f8">
-  </picture>
+    <a href="https://github.com/TarekSaeed0/tsk/blob/main/LICENSE">
+        <img alt="Github License" src="https://img.shields.io/github/license/TarekSaeed0/tsk?style=for-the-badge&labelColor=%231e1e2e&color=%238bd5ca">
+    </a>
+    <a href="https://github.com/TarekSaeed0/tsk/pulse">
+        <img alt="Last Commit" src="https://img.shields.io/github/last-commit/TarekSaeed0/tsk?style=for-the-badge&labelColor=%231e1e2e&color=%238bd5ca">
+    </a>
+    <a href="https://github.com/TarekSaeed0/tsk/stargazers">
+        <img alt="Repo stars" src="https://img.shields.io/github/stars/TarekSaeed0/tsk?style=for-the-badge&labelColor=%231e1e2e&color=%238bd5ca">
     </a>
 </div>
 

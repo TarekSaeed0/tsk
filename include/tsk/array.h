@@ -65,8 +65,17 @@ TskAny        *tsk_array_view_get(const TskType *array_view_type, TskArrayView a
 TskAny        *tsk_array_view_front(const TskType *array_view_type, TskArrayView array_view);
 TskAny        *tsk_array_view_back(const TskType *array_view_type, TskArrayView array_view);
 TskEmpty       tsk_array_view_swap(const TskType *array_view_type, TskArrayView array_view, TskUSize index_1, TskUSize index_2);
+TskBoolean     tsk_array_view_linear_search(const TskType *array_view_type, TskArrayView array_view, const TskAny *element, TskUSize *index);
+TskBoolean     tsk_array_view_binary_search(const TskType *array_view_type, TskArrayView array_view, const TskAny *element, TskUSize *index);
+TskUSize       tsk_array_view_lower_bound(const TskType *array_view_type, TskArrayView array_view, const TskAny *element);
+TskUSize       tsk_array_view_upper_bound(const TskType *array_view_type, TskArrayView array_view, const TskAny *element);
+TskEmpty       tsk_array_view_equal_range(const TskType *array_view_type, TskArrayView array_view, const TskAny *element, TskUSize *start, TskUSize *end);
 TskEmpty       tsk_array_view_sort(const TskType *array_view_type, TskArrayView array_view);
+TskBoolean     tsk_array_view_is_sorted(const TskType *array_view_type, TskArrayView array_view);
+TskUSize       tsk_array_view_sorted_until(const TskType *array_view_type, TskArrayView array_view);
 TskEmpty       tsk_array_view_partition(const TskType *array_view_type, TskArrayView array_view, TskBoolean (*predicate)(const TskAny *element));
+TskBoolean     tsk_array_view_is_partitioned(const TskType *array_view_type, TskArrayView array_view, TskBoolean (*predicate)(const TskAny *element));
+TskUSize       tsk_array_view_partition_point(const TskType *array_view_type, TskArrayView array_view, TskBoolean (*predicate)(const TskAny *element));
 TskEmpty       tsk_array_view_reverse(const TskType *array_view_type, TskArrayView array_view);
 TskOrdering    tsk_array_view_compare(const TskType *array_view_type, TskArrayView array_view_1, TskArrayView array_view_2);
 TskBoolean     tsk_array_view_equals(const TskType *array_view_type, TskArrayView array_view_1, TskArrayView array_view_2);

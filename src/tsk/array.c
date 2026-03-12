@@ -679,6 +679,45 @@ TskEmpty tsk_array_view_swap(const TskType *array_view_type, TskArrayView array_
 		elements_2[i] = byte;
 	}
 }
+TskBoolean tsk_array_view_linear_search(const TskType *array_view_type, TskArrayView array_view, const TskAny *element, TskUSize *index) {
+	return tsk_array_view_const_linear_search(
+	    tsk_array_view_const_type(tsk_array_view_element_type(array_view_type)),
+	    tsk_array_view_as_const(array_view_type, array_view),
+	    element,
+	    index
+	);
+}
+TskBoolean tsk_array_view_binary_search(const TskType *array_view_type, TskArrayView array_view, const TskAny *element, TskUSize *index) {
+	return tsk_array_view_const_binary_search(
+	    tsk_array_view_const_type(tsk_array_view_element_type(array_view_type)),
+	    tsk_array_view_as_const(array_view_type, array_view),
+	    element,
+	    index
+	);
+}
+TskUSize tsk_array_view_lower_bound(const TskType *array_view_type, TskArrayView array_view, const TskAny *element) {
+	return tsk_array_view_const_lower_bound(
+	    tsk_array_view_const_type(tsk_array_view_element_type(array_view_type)),
+	    tsk_array_view_as_const(array_view_type, array_view),
+	    element
+	);
+}
+TskUSize tsk_array_view_upper_bound(const TskType *array_view_type, TskArrayView array_view, const TskAny *element) {
+	return tsk_array_view_const_upper_bound(
+	    tsk_array_view_const_type(tsk_array_view_element_type(array_view_type)),
+	    tsk_array_view_as_const(array_view_type, array_view),
+	    element
+	);
+}
+TskEmpty tsk_array_view_equal_range(const TskType *array_view_type, TskArrayView array_view, const TskAny *element, TskUSize *start, TskUSize *end) {
+	tsk_array_view_const_equal_range(
+	    tsk_array_view_const_type(tsk_array_view_element_type(array_view_type)),
+	    tsk_array_view_as_const(array_view_type, array_view),
+	    element,
+	    start,
+	    end
+	);
+}
 #if defined(__GLIBC__) || (defined(__FreeBSD__) && defined(qsort_r))
 	#define QSORT_R_LINUX
 #elif defined(__APPLE__) || defined(__MACH__) || defined(__DARWIN__) || (defined(__FreeBSD__) && !defined(qsort_r)) || defined(__DragonFly__)
@@ -769,6 +808,18 @@ TskEmpty tsk_array_view_sort(const TskType *array_view_type, TskArrayView array_
 		free(elements);
 	}
 }
+TskBoolean tsk_array_view_is_sorted(const TskType *array_view_type, TskArrayView array_view) {
+	return tsk_array_view_const_is_sorted(
+	    tsk_array_view_const_type(tsk_array_view_element_type(array_view_type)),
+	    tsk_array_view_as_const(array_view_type, array_view)
+	);
+}
+TskUSize tsk_array_view_sorted_until(const TskType *array_view_type, TskArrayView array_view) {
+	return tsk_array_view_const_sorted_until(
+	    tsk_array_view_const_type(tsk_array_view_element_type(array_view_type)),
+	    tsk_array_view_as_const(array_view_type, array_view)
+	);
+}
 TskEmpty tsk_array_view_partition(const TskType *array_view_type, TskArrayView array_view, TskBoolean (*predicate)(const TskAny *element)) {
 	assert(tsk_array_view_type_is_valid(array_view_type));
 	assert(tsk_array_view_is_valid(array_view_type, array_view));
@@ -787,6 +838,20 @@ TskEmpty tsk_array_view_partition(const TskType *array_view_type, TskArrayView a
 			i++;
 		}
 	}
+}
+TskBoolean tsk_array_view_is_partitioned(const TskType *array_view_type, TskArrayView array_view, TskBoolean (*predicate)(const TskAny *element)) {
+	return tsk_array_view_const_is_partitioned(
+	    tsk_array_view_const_type(tsk_array_view_element_type(array_view_type)),
+	    tsk_array_view_as_const(array_view_type, array_view),
+	    predicate
+	);
+}
+TskUSize tsk_array_view_partition_point(const TskType *array_view_type, TskArrayView array_view, TskBoolean (*predicate)(const TskAny *element)) {
+	return tsk_array_view_const_partition_point(
+	    tsk_array_view_const_type(tsk_array_view_element_type(array_view_type)),
+	    tsk_array_view_as_const(array_view_type, array_view),
+	    predicate
+	);
 }
 TskEmpty tsk_array_view_reverse(const TskType *array_view_type, TskArrayView array_view) {
 	assert(tsk_array_view_type_is_valid(array_view_type));

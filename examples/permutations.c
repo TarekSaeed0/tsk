@@ -10,19 +10,16 @@ TskBoolean tsk_array_view_next_permutation(const TskType *array_view_type, TskAr
 	assert(tsk_array_view_is_valid(array_view_type, array_view));
 	assert(tsk_type_has_trait(tsk_array_view_element_type(array_view_type), TSK_TRAIT_ID_COMPARABLE));
 
-	array_view                              = tsk_array_view_slice(array_view_type, array_view, tsk_array_view_length(array_view_type, array_view), 0, -1);
+	array_view = tsk_array_view_slice(array_view_type, array_view, tsk_array_view_length(array_view_type, array_view), 0, -1);
 
-	const TskType    *array_view_const_type = tsk_array_view_const_type(tsk_array_view_element_type(array_view_type));
-	TskArrayViewConst array_view_const      = tsk_array_view_as_const(array_view_type, array_view);
-
-	TskUSize i                              = tsk_array_view_const_sorted_until(array_view_const_type, array_view_const);
+	TskUSize i = tsk_array_view_sorted_until(array_view_type, array_view);
 	if (i == tsk_array_view_length(array_view_type, array_view)) {
 		return TSK_FALSE;
 	}
 
-	TskUSize j = tsk_array_view_const_upper_bound(
-	    array_view_const_type,
-	    tsk_array_view_const_slice(array_view_const_type, array_view_const, 0, i, 1),
+	TskUSize j = tsk_array_view_upper_bound(
+	    array_view_type,
+	    tsk_array_view_slice(array_view_type, array_view, 0, i, 1),
 	    tsk_array_view_get(array_view_type, array_view, i)
 	);
 
